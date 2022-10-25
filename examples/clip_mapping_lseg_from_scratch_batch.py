@@ -194,8 +194,6 @@ def create_lseg_map_batch(img_save_dir, camera_height, cs=0.05, gs=1000, depth_s
 
             if p_local[1] > camera_height:
                 continue
-            if mask_version == 1:
-                mask[y, x] = 255
             obstacles[y, x] = 0
 
         et = time.time()

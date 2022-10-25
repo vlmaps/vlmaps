@@ -8,12 +8,9 @@ conda create -n vlmaps python==3.8 -y
 conda activate vlmaps
 # go to the link to find suitable CUDA version for torch 1.9.1 https://pytorch.org/get-started/previous-versions/
 pip install git+https://github.com/openai/CLIP.git
-pip install torch==1.9.1+cu111 torchvision==0.10.1+cu111 torchaudio==0.9.1 -f https://download.pytorch.org/whl/torch_stable.html
-pip install torchmetrics==0.5.1
-pip install setuptools==59.5.0
-pip install git+https://github.com/zhanghang1989/PyTorch-Encoding/
+pip install torch-encoding
 conda install ipython -y
-pip install pytorch-lightning==1.4.9
+pip install pytorch-lightning
 pip install opencv-python
 pip install imageio
 pip install ftfy regex tqdm

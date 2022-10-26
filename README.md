@@ -1,6 +1,30 @@
-# README
+# VLMaps: Visual Language Maps for Robot Navigation
 
-## Installation
+## DEMO
+You can try our code with the CoLab notebook [Here](https://colab.research.google.com/drive/1xsH9Gr_O36sBZaoPNq1SmqgOOF12spV0?usp=sharing).
+If you want to run our code locally, you could follow the instructions below.
+
+## Dependencies Installation
+
+Our code is tested in the Ubuntu 20.04 system. We recommend using Conda for python package management. Please install conda with the following commands if you don't have it on your machine:
+
+```bash
+cd ~
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+chmod +x Miniconda3-latest-Linux-x86_64.sh
+./Miniconda3-latest-Linux-x86_64.sh -b -p <PATH WHERE CONDA IS INSTALLED>
+rm -rf Miniconda3-latest-Linux-x86_64.sh
+```
+
+You can install the dependencies with the `setup.bash` file or run the following commands in a terminal manually.
+
+### install with `setup.bash` file
+```bash
+chmod +x setup.bash
+./setup.bash
+```
+
+### install manually
 
 ```bash
 # installation for lseg
@@ -50,3 +74,4 @@ python -m pip install -e .
 pip install rospkg
 pip install pyvisgraph
 ```
+

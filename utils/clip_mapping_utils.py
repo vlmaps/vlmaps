@@ -204,13 +204,9 @@ def depth2pc(depth, fov=90):
     h, w = depth.shape
 
     cam_mat = get_sim_cam_mat_with_fov(h, w, fov)
-    # cam_mat[:2, 2] = 0
     cam_mat_inv = np.linalg.inv(cam_mat)
 
     y, x = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
-    # x = x[int(h/2)].reshape((1, -1))
-    # y = y[int(h/2)].reshape((1, -1))
-    # z = depth[int(h/2)].reshape((1, -1))
 
     x = x.reshape((1, -1))[:, :]
     y = y.reshape((1, -1))[:, :]
@@ -220,21 +216,12 @@ def depth2pc(depth, fov=90):
     pc = cam_mat_inv @ p_2d
     pc = pc * z
     mask = pc[2, :] > 0.1
-    # pc = pc[:, mask]
     return pc, mask
 
 
 def get_new_pallete(num_cls):
     n = num_cls
     pallete = [0] * (n * 3)
-    # hsv_step = int(179 / n)
-    # for j in range(0, n):
-    #     hsv = np.array([hsv_step * j, 255, 255], dtype=np.uint8).reshape((1,1,3))
-    #     rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
-    #     rgb = rgb.reshape(-1)
-    #     pallete[j * 3 + 0] = rgb[0]
-    #     pallete[j * 3 + 1] = rgb[1]
-    #     pallete[j * 3 + 2] = rgb[2]
 
     for j in range(0, n):
         lab = j
@@ -279,8 +266,6 @@ def transform_pc(pc, pose):
     """
     pose: the pose of the camera coordinate where the pc is in
     """
-    # pose_inv = np.linalg.inv(pose)
-
     pc_homo = np.vstack([pc, np.ones((1, pc.shape[1]))])
 
     pc_global_homo = pose @ pc_homo
@@ -435,8 +420,6 @@ def get_sim_cam_mat_with_fov(h, w, fov):
 
     cam_mat = np.eye(3)
     cam_mat[0, 0] = cam_mat[1, 1] = w / (2.0 * np.tan(np.deg2rad(fov / 2)))
-    # vfov = fov * h / w
-    # cam_mat[1, 1] = h / (2.0 * np.tan(np.deg2rad(vfov / 2)))
     cam_mat[0, 2] = w / 2.0
     cam_mat[1, 2] = h / 2.0
     return cam_mat

@@ -1,0 +1,17 @@
+*__pycache__
+runs
+distance_prediction
+features
+wandb
+images
+graphs
+data
+*obj_names_features.txt
+*place_names_features.txt
+*.npy
+*.yml
+*checkpoints
+*.ckpt
+*logs
+rgb.mp4
+depth.mp4

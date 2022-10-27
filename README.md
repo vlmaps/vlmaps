@@ -16,7 +16,9 @@ goal navigation without additional data collection or model finetuning.
 ![](media/banner.png)
 
 # Quick Start
-To begin, clone this repository locally
+Try VLMaps creation and landmark indexing in [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1xsH9Gr_O36sBZaoPNq1SmqgOOF12spV0?usp=sharing).
+
+To begin on your own machine, clone this repository locally
 ```bash
 git clone git@github.com:Tom-Huang/vlmaps.git
 
@@ -27,6 +29,7 @@ $ conda create -n vlmaps python=3.8  # or use virtualenv
 $ conda activate vlmaps
 $ bash install.bash
 ```
+
 
 
 # Benchmark

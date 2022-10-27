@@ -1,7 +1,5 @@
 #!/bin/bash
 
-conda create -n vlmaps python==3.8 -y
-conda activate vlmaps
 # go to the link to find suitable CUDA version for torch 1.9.1 https://pytorch.org/get-started/previous-versions/
 pip install git+https://github.com/openai/CLIP.git
 pip install torch-encoding

@@ -12,15 +12,24 @@ We present **VLMAPs** (**V**isual **L**anguage **Maps**),  a spatial map represe
 world. Spatially anchoring visual language features enables *natural language indexing in the map*, which can be used to, e.g., localize landmarks
 or spatial references with respect to landmarks – enabling zero-shot spatial
 goal navigation without additional data collection or model finetuning.
-```
 
-You can install the dependencies with the `setup.bash` file or run the following commands in a terminal manually.
+![](media/banner.png)
 
-### install with `setup.bash` file
+# Quick Start
+To begin, clone this repository locally
 ```bash
-chmod +x setup.bash
-./setup.bash
+git clone git@github.com:Tom-Huang/vlmaps.git
+
 ```
+Install requirements:
+```bash
+$ conda create -n vlmaps python=3.8  # or use virtualenv
+$ conda activate vlmaps
+$ bash install.bash
+```
+
+
+# Benchmark
 
 
 

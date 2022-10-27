@@ -29,7 +29,11 @@ $ conda create -n vlmaps python=3.8  # or use virtualenv
 $ conda activate vlmaps
 $ bash install.bash
 ```
-
+Start the jupyter notebook
+```bash
+$ cd vlmaps
+$ jupyter notebook demo.ipynb
+```
 
 
 # Benchmark

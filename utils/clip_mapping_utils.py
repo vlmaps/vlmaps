@@ -1,33 +1,32 @@
-import examples.context as context
-
-import yaml
-import numpy as np
 import cv2
-
-import torch
-
+import h5py
 import matplotlib.patches as mpatches
+import numpy as np
 
 # function to display the topdown map
 from PIL import Image
 from scipy.spatial.transform import Rotation as R
-import h5py
+import torch
+import yaml
+
+import examples.context as context
 
 # from utils.utils import *
 
 # from socratic_navigation import navigate_with_pose
 
+
 def load_ai2thor_pose(pose_filepath):
-    with open(pose_filepath, 'r') as f:
+    with open(pose_filepath, "r") as f:
         line = f.readline()
         row = [float(x) for x in line.split()]
-    return np.array(row, dtype=float).reshape((4,4))
+    return np.array(row, dtype=float).reshape((4, 4))
 
 
 def load_real_world_poses(pose_filepath):
     ids_list = []
     tf_list = []
-    with open(pose_filepath, 'r') as f:
+    with open(pose_filepath, "r") as f:
         line = f.readline()
         for line in f:
             row = [float(x) for x in line.strip().split()]
@@ -44,28 +43,27 @@ def load_real_world_poses(pose_filepath):
             ids_list.append(id)
     return tf_list, ids_list
 
+
 def load_tf_file(pose_filepath):
-    with open(pose_filepath, 'r') as f:
+    with open(pose_filepath, "r") as f:
         line = f.readline()
-        tf = np.array([float(x) for x in line.strip("\n").split()]).reshape((4,4))
+        tf = np.array([float(x) for x in line.strip("\n").split()]).reshape((4, 4))
     return tf
 
+
 def load_calib(calib_path):
-    with open(calib_path, 'r') as f:
+    with open(calib_path, "r") as f:
         f.readline()
         f.readline()
         data = yaml.load(f, Loader=yaml.Loader)
     array = data["camera_matrix"]["data"]
     print("calib array", array)
-    cam_mat = np.array([float(x) for x in array], dtype=np.float32).reshape((3,3))
+    cam_mat = np.array([float(x) for x in array], dtype=np.float32).reshape((3, 3))
     return cam_mat
-    
-
-
 
 
 def load_pose(pose_filepath):
-    with open(pose_filepath, 'r') as f:
+    with open(pose_filepath, "r") as f:
         line = f.readline()
         row = [float(x) for x in line.split()]
         pos = np.array(row[:3], dtype=float).reshape((3, 1))
@@ -77,14 +75,16 @@ def load_pose(pose_filepath):
 
 
 def load_depth(depth_filepath):
-    with open(depth_filepath, 'rb') as f:
+    with open(depth_filepath, "rb") as f:
         depth = np.load(f)
     return depth
 
+
 def load_semantic(semantic_filepath):
-    with open(semantic_filepath, 'rb') as f:
+    with open(semantic_filepath, "rb") as f:
         semantic = np.load(f)
     return semantic
+
 
 def rob_pose2_cam_pose(pos, rot, camera_height):
     """
@@ -105,6 +105,7 @@ def rob_pose2_cam_pose(pos, rot, camera_height):
 
     return pose
 
+
 def get_id2cls(obj2cls: dict):
     id2cls = {id: name for k, (id, name) in obj2cls.items()}
     return id2cls
@@ -116,10 +117,12 @@ def cvt_obj_id_2_cls_id(semantic: np.array, obj2cls: dict):
     u, inv = np.unique(semantic, return_inverse=True)
     return np.array([obj2cls[x][0] for x in u])[inv].reshape((h, w))
 
+
 def load_lseg_feat(feat_filepath):
-    with h5py.File(feat_filepath, 'r') as f:
-        feat = np.array(f['pixfeat'])
+    with h5py.File(feat_filepath, "r") as f:
+        feat = np.array(f["pixfeat"])
     return feat
+
 
 def resize_feat(feat, h, w):
     """
@@ -128,10 +131,11 @@ def resize_feat(feat, h, w):
     # b, f, _, _ = feat.shape
     # feat = np.resize(feat, (b, f, h, w))
     feat = torch.tensor(feat)
-    feat = torch.nn.functional.interpolate(feat, (h, w), **{'mode': 'bilinear', 'align_corners': True})
+    feat = torch.nn.functional.interpolate(feat, (h, w), **{"mode": "bilinear", "align_corners": True})
     feat = feat.numpy()
 
     return feat
+
 
 def depth2pc_ai2thor(depth, clipping_dist=0.1, fov=90):
     """
@@ -144,7 +148,7 @@ def depth2pc_ai2thor(depth, clipping_dist=0.1, fov=90):
 
     cam_mat_inv = np.linalg.inv(cam_mat)
 
-    y, x = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')
+    y, x = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
     # x = x[int(h/2)].reshape((1, -1))
     # y = y[int(h/2)].reshape((1, -1))
     # z = depth[int(h/2)].reshape((1, -1))
@@ -152,7 +156,7 @@ def depth2pc_ai2thor(depth, clipping_dist=0.1, fov=90):
     x = x.reshape((1, -1))[:, :]
     y = y.reshape((1, -1))[:, :]
     # z = depth.reshape((1, -1))[:, :] + clipping_dist
-    z = depth.reshape((1, -1))[:, :] 
+    z = depth.reshape((1, -1))[:, :]
 
     p_2d = np.vstack([x, y, np.ones_like(x)])
     pc = cam_mat_inv @ p_2d
@@ -163,6 +167,7 @@ def depth2pc_ai2thor(depth, clipping_dist=0.1, fov=90):
     # pc = pc[:, mask]
     return pc, mask
 
+
 def depth2pc_real_world(depth, cam_mat):
     """
     Return 3xN array
@@ -171,8 +176,7 @@ def depth2pc_real_world(depth, cam_mat):
     h, w = depth.shape
     cam_mat_inv = np.linalg.inv(cam_mat)
 
-
-    y, x = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')
+    y, x = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
     # x = x[int(h/2)].reshape((1, -1))
     # y = y[int(h/2)].reshape((1, -1))
     # z = depth[int(h/2)].reshape((1, -1))
@@ -191,6 +195,7 @@ def depth2pc_real_world(depth, cam_mat):
     # pc = pc[:, mask]
     return pc, mask
 
+
 def depth2pc(depth, fov=90):
     """
     Return 3xN array
@@ -202,7 +207,7 @@ def depth2pc(depth, fov=90):
     # cam_mat[:2, 2] = 0
     cam_mat_inv = np.linalg.inv(cam_mat)
 
-    y, x = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')
+    y, x = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
     # x = x[int(h/2)].reshape((1, -1))
     # y = y[int(h/2)].reshape((1, -1))
     # z = depth[int(h/2)].reshape((1, -1))
@@ -217,10 +222,11 @@ def depth2pc(depth, fov=90):
     mask = pc[2, :] > 0.1
     # pc = pc[:, mask]
     return pc, mask
- 
+
+
 def get_new_pallete(num_cls):
     n = num_cls
-    pallete = [0]*(n*3)
+    pallete = [0] * (n * 3)
     # hsv_step = int(179 / n)
     # for j in range(0, n):
     #     hsv = np.array([hsv_step * j, 255, 255], dtype=np.uint8).reshape((1,1,3))
@@ -230,24 +236,25 @@ def get_new_pallete(num_cls):
     #     pallete[j * 3 + 1] = rgb[1]
     #     pallete[j * 3 + 2] = rgb[2]
 
-    for j in range(0,n):
+    for j in range(0, n):
         lab = j
-        pallete[j*3+0] = 0
-        pallete[j*3+1] = 0
-        pallete[j*3+2] = 0
+        pallete[j * 3 + 0] = 0
+        pallete[j * 3 + 1] = 0
+        pallete[j * 3 + 2] = 0
         i = 0
-        while (lab > 0):
-                pallete[j*3+0] |= (((lab >> 0) & 1) << (7-i))
-                pallete[j*3+1] |= (((lab >> 1) & 1) << (7-i))
-                pallete[j*3+2] |= (((lab >> 2) & 1) << (7-i))
-                i = i + 1
-                lab >>= 3
+        while lab > 0:
+            pallete[j * 3 + 0] |= ((lab >> 0) & 1) << (7 - i)
+            pallete[j * 3 + 1] |= ((lab >> 1) & 1) << (7 - i)
+            pallete[j * 3 + 2] |= ((lab >> 2) & 1) << (7 - i)
+            i = i + 1
+            lab >>= 3
     return pallete
+
 
 def get_new_mask_pallete(npimg, new_palette, out_label_flag=False, labels=None, ignore_ids_list=[]):
     """Get image color pallete for visualizing masks"""
     # put colormap
-    out_img = Image.fromarray(npimg.squeeze().astype('uint8'))
+    out_img = Image.fromarray(npimg.squeeze().astype("uint8"))
     out_img.putpalette(new_palette)
 
     if out_label_flag:
@@ -258,10 +265,15 @@ def get_new_mask_pallete(npimg, new_palette, out_label_flag=False, labels=None, 
             if index in ignore_ids_list:
                 continue
             label = labels[index]
-            cur_color = [new_palette[index * 3] / 255.0, new_palette[index * 3 + 1] / 255.0, new_palette[index * 3 + 2] / 255.0]
+            cur_color = [
+                new_palette[index * 3] / 255.0,
+                new_palette[index * 3 + 1] / 255.0,
+                new_palette[index * 3 + 2] / 255.0,
+            ]
             red_patch = mpatches.Patch(color=cur_color, label=label)
             patches.append(red_patch)
     return out_img, patches
+
 
 def transform_pc(pc, pose):
     """
@@ -281,12 +293,12 @@ def pos2grid_id(gs, cs, xx, yy):
     y = int(gs / 2 - int(yy / cs))
     return [x, y]
 
+
 def grid_id2pos(gs, cs, x, y):
     xx = (x - gs / 2) * cs
     zz = (gs / 2 - y) * cs
 
     return xx, zz
-
 
 
 def get_vfov(hfov, h, w):
@@ -298,7 +310,7 @@ def get_frustum_4pts(dmin, dmax, theta, hf_2, vf_2):
     theta -= np.pi / 2
     theta = -theta
     tan_theta_hf_2 = np.tan(theta + hf_2)
-    tmp = 1. / (np.sin(theta) * tan_theta_hf_2 + np.cos(theta))
+    tmp = 1.0 / (np.sin(theta) * tan_theta_hf_2 + np.cos(theta))
     x1 = dmin * tmp
     y1 = tan_theta_hf_2 * x1
 
@@ -306,7 +318,7 @@ def get_frustum_4pts(dmin, dmax, theta, hf_2, vf_2):
     y4 = tan_theta_hf_2 * x4
 
     tan_theta_min_hf_2 = np.tan(theta - hf_2)
-    tmp2 = 1. / (np.sin(theta) * tan_theta_min_hf_2 + np.cos(theta))
+    tmp2 = 1.0 / (np.sin(theta) * tan_theta_min_hf_2 + np.cos(theta))
 
     x2 = dmin * tmp2
     y2 = tan_theta_min_hf_2 * x2
@@ -315,6 +327,7 @@ def get_frustum_4pts(dmin, dmax, theta, hf_2, vf_2):
     y3 = tan_theta_min_hf_2 * x3
 
     return np.array([[x1, y1], [x2, y2], [x3, y3], [x4, y4]], dtype=np.float64)
+
 
 def generate_mask(gs, cs, hfov, theta, depth, robot_x, robot_y):
     """
@@ -329,7 +342,7 @@ def generate_mask(gs, cs, hfov, theta, depth, robot_x, robot_y):
     # get the angle of the end points
     w = depth.shape[1]
     inc = hfov / float(w)
-    angles = theta + hfov / 2. - np.arange(w) * hfov / w
+    angles = theta + hfov / 2.0 - np.arange(w) * hfov / w
 
     # get the list of end points positions
     x = robot_x + z * np.cos(angles)
@@ -340,13 +353,15 @@ def generate_mask(gs, cs, hfov, theta, depth, robot_x, robot_y):
         cv2.line(mask, sp, ep, 255)
     return mask
 
+
 def save_map(save_path, map):
-    with open(save_path, 'wb') as f:
+    with open(save_path, "wb") as f:
         np.save(f, map)
         print(f"{save_path} is saved.")
 
+
 def load_map(load_path):
-    with open(load_path, 'rb') as f:
+    with open(load_path, "rb") as f:
         map = np.load(f)
     return map
 
@@ -397,6 +412,7 @@ d3_40_colors_rgb: np.ndarray = np.array(
     dtype=np.uint8,
 )
 
+
 def get_sim_cam_mat(h, w):
 
     cam_mat = np.eye(3)
@@ -405,6 +421,7 @@ def get_sim_cam_mat(h, w):
     cam_mat[1, 2] = h / 2.0
     return cam_mat
 
+
 def project_point(cam_mat, p):
     new_p = cam_mat @ p.reshape((3, 1))
     z = new_p[2, 0]
@@ -412,6 +429,7 @@ def project_point(cam_mat, p):
     x = int(new_p[0, 0] + 0.5)
     y = int(new_p[1, 0] + 0.5)
     return x, y, z
+
 
 def get_sim_cam_mat_with_fov(h, w, fov):
 
@@ -422,6 +440,7 @@ def get_sim_cam_mat_with_fov(h, w, fov):
     cam_mat[0, 2] = w / 2.0
     cam_mat[1, 2] = h / 2.0
     return cam_mat
+
 
 def load_obj2cls_dict(filepath):
     obj2cls_dict = dict()

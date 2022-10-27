@@ -1,30 +1,27 @@
+from argparse import ArgumentParser
+import glob
+import os
 import re
+
+import clip
+from encoding.models.sseg.base import up_kwargs
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from PIL import Image
+import pytorch_lightning as pl
+from scipy import signal
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
-from argparse import ArgumentParser
-import pytorch_lightning as pl
+
 from .lsegmentation_module import LSegmentationModule
 from .models.lseg_net import LSegNet
-from encoding.models.sseg.base import up_kwargs
-
-import os
-import clip
-import numpy as np
-
-from scipy import signal
-import glob
-
-from PIL import Image
-import matplotlib.pyplot as plt
-import pandas as pd
 
 
 class LSegModule(LSegmentationModule):
     def __init__(self, data_path, dataset, batch_size, base_lr, max_epochs, **kwargs):
-        super(LSegModule, self).__init__(
-            data_path, dataset, batch_size, base_lr, max_epochs, **kwargs
-        )
+        super(LSegModule, self).__init__(data_path, dataset, batch_size, base_lr, max_epochs, **kwargs)
 
         if dataset == "citys":
             self.base_size = 2048
@@ -34,10 +31,10 @@ class LSegModule(LSegmentationModule):
             self.crop_size = 480
 
         use_pretrained = True
-        norm_mean= [0.5, 0.5, 0.5]
+        norm_mean = [0.5, 0.5, 0.5]
         norm_std = [0.5, 0.5, 0.5]
 
-        print('** Use norm {}, {} as the mean and std **'.format(norm_mean, norm_std))
+        print("** Use norm {}, {} as the mean and std **".format(norm_mean, norm_std))
 
         train_transform = [
             transforms.ToTensor(),
@@ -58,7 +55,7 @@ class LSegModule(LSegmentationModule):
         #     base_size=self.base_size,
         #     crop_size=self.crop_size,
         # )
-        
+
         # self.valset = self.get_valset(
         #     dataset,
         #     augment=kwargs["augment"],
@@ -66,12 +63,10 @@ class LSegModule(LSegmentationModule):
         #     crop_size=self.crop_size,
         # )
 
-        use_batchnorm = (
-            (not kwargs["no_batchnorm"]) if "no_batchnorm" in kwargs else True
-        )
+        use_batchnorm = (not kwargs["no_batchnorm"]) if "no_batchnorm" in kwargs else True
         # print(kwargs)
 
-        labels = self.get_labels('ade20k')
+        labels = self.get_labels("ade20k")
 
         self.net = LSegNet(
             labels=labels,
@@ -96,18 +91,17 @@ class LSegModule(LSegmentationModule):
 
     def get_labels(self, dataset):
         labels = []
-        path = 'label_files/{}_objectInfo150.txt'.format(dataset)
-        assert os.path.exists(path), '*** Error : {} not exist !!!'.format(path)
-        f = open(path, 'r') 
-        lines = f.readlines()      
-        for line in lines: 
-            label = line.strip().split(',')[-1].split(';')[0]
+        path = "label_files/{}_objectInfo150.txt".format(dataset)
+        assert os.path.exists(path), "*** Error : {} not exist !!!".format(path)
+        f = open(path, "r")
+        lines = f.readlines()
+        for line in lines:
+            label = line.strip().split(",")[-1].split(";")[0]
             labels.append(label)
         f.close()
-        if dataset in ['ade20k']:
+        if dataset in ["ade20k"]:
             labels = labels[1:]
         return labels
-
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -130,9 +124,7 @@ class LSegModule(LSegmentationModule):
 
         parser.add_argument("--dropout", type=float, default=0.1, help="dropout rate")
 
-        parser.add_argument(
-            "--finetune_weights", type=str, help="load weights to finetune from"
-        )
+        parser.add_argument("--finetune_weights", type=str, help="load weights to finetune from")
 
         parser.add_argument(
             "--no-scaleinv",
@@ -148,9 +140,7 @@ class LSegModule(LSegmentationModule):
             help="turn off batchnorm",
         )
 
-        parser.add_argument(
-            "--widehead", default=False, action="store_true", help="wider output head"
-        )
+        parser.add_argument("--widehead", default=False, action="store_true", help="wider output head")
 
         parser.add_argument(
             "--widehead_hr",
@@ -175,7 +165,7 @@ class LSegModule(LSegmentationModule):
 
         parser.add_argument(
             "--activation",
-            choices=['lrelu', 'tanh'],
+            choices=["lrelu", "tanh"],
             default="lrelu",
             help="use which activation to activate the block",
         )

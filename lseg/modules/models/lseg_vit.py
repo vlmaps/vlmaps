@@ -1,10 +1,11 @@
+import math
+import types
+
+import clip
+import timm
 import torch
 import torch.nn as nn
-import timm
-import types
-import math
 import torch.nn.functional as F
-import clip
 
 activations = {}
 
@@ -23,11 +24,7 @@ def get_attention(name):
     def hook(module, input, output):
         x = input[0]
         B, N, C = x.shape
-        qkv = (
-            module.qkv(x)
-            .reshape(B, N, 3, module.num_heads, C // module.num_heads)
-            .permute(2, 0, 3, 1, 4)
-        )
+        qkv = module.qkv(x).reshape(B, N, 3, module.num_heads, C // module.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = (
             qkv[0],
             qkv[1],
@@ -45,9 +42,7 @@ def get_attention(name):
 def get_mean_attention_map(attn, token, shape):
     attn = attn[:, :, token, 1:]
     attn = attn.unflatten(2, torch.Size([shape[2] // 16, shape[3] // 16])).float()
-    attn = torch.nn.functional.interpolate(
-        attn, size=shape[2:], mode="bicubic", align_corners=False
-    ).squeeze(0)
+    attn = torch.nn.functional.interpolate(attn, size=shape[2:], mode="bicubic", align_corners=False).squeeze(0)
 
     all_attn = torch.mean(attn, 0)
 
@@ -103,7 +98,7 @@ class Transpose(nn.Module):
 
 def forward_vit(pretrained, x):
     b, c, h, w = x.shape
-    
+
     # encoder
     glob = pretrained.model.forward_flex(x)
 
@@ -166,9 +161,7 @@ def _resize_pos_embed(self, posemb, gs_h, gs_w):
 def forward_flex(self, x):
     b, c, h, w = x.shape
 
-    pos_embed = self._resize_pos_embed(
-        self.pos_embed, h // self.patch_size[1], w // self.patch_size[0]
-    )
+    pos_embed = self._resize_pos_embed(self.pos_embed, h // self.patch_size[1], w // self.patch_size[0])
 
     B = x.shape[0]
 
@@ -179,15 +172,11 @@ def forward_flex(self, x):
     x = self.patch_embed.proj(x).flatten(2).transpose(1, 2)
 
     if getattr(self, "dist_token", None) is not None:
-        cls_tokens = self.cls_token.expand(
-            B, -1, -1
-        )  # stole cls_tokens impl from Phil Wang, thanks
+        cls_tokens = self.cls_token.expand(B, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
         dist_token = self.dist_token.expand(B, -1, -1)
         x = torch.cat((cls_tokens, dist_token, x), dim=1)
     else:
-        cls_tokens = self.cls_token.expand(
-            B, -1, -1
-        )  # stole cls_tokens impl from Phil Wang, thanks
+        cls_tokens = self.cls_token.expand(B, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
         x = torch.cat((cls_tokens, x), dim=1)
 
     x = x + pos_embed
@@ -207,25 +196,19 @@ def get_readout_oper(vit_features, features, use_readout, start_index=1):
     elif use_readout == "add":
         readout_oper = [AddReadout(start_index)] * len(features)
     elif use_readout == "project":
-        readout_oper = [
-            ProjectReadout(vit_features, start_index) for out_feat in features
-        ]
+        readout_oper = [ProjectReadout(vit_features, start_index) for out_feat in features]
     else:
-        assert (
-            False
-        ), "wrong operation for readout token, use_readout can be 'ignore', 'add', or 'project'"
+        assert False, "wrong operation for readout token, use_readout can be 'ignore', 'add', or 'project'"
 
     return readout_oper
 
 
-def _make_pretrained_clip_vitl16_384(
-    pretrained, use_readout="ignore", hooks=None, enable_attention_hooks=False
-):
-    clip_pretrained, _ = clip.load("ViT-B/32", device='cuda', jit=False)
+def _make_pretrained_clip_vitl16_384(pretrained, use_readout="ignore", hooks=None, enable_attention_hooks=False):
+    clip_pretrained, _ = clip.load("ViT-B/32", device="cuda", jit=False)
     model = timm.create_model("vit_large_patch16_384", pretrained=pretrained)
 
     hooks = [5, 11, 17, 23] if hooks == None else hooks
-    
+
     pretrained = _make_vit_b16_backbone(
         model,
         features=[256, 512, 1024, 1024],
@@ -237,14 +220,12 @@ def _make_pretrained_clip_vitl16_384(
     return clip_pretrained, pretrained
 
 
-def _make_pretrained_clipRN50x16_vitl16_384(
-    pretrained, use_readout="ignore", hooks=None, enable_attention_hooks=False
-):
-    clip_pretrained, _ = clip.load("RN50x16", device='cuda', jit=False)
+def _make_pretrained_clipRN50x16_vitl16_384(pretrained, use_readout="ignore", hooks=None, enable_attention_hooks=False):
+    clip_pretrained, _ = clip.load("RN50x16", device="cuda", jit=False)
     model = timm.create_model("vit_large_patch16_384", pretrained=pretrained)
 
     hooks = [5, 11, 17, 23] if hooks == None else hooks
-    
+
     pretrained = _make_vit_b16_backbone(
         model,
         features=[256, 512, 1024, 1024],
@@ -257,15 +238,15 @@ def _make_pretrained_clipRN50x16_vitl16_384(
 
 
 def _make_pretrained_clip_vitb32_384(pretrained, use_readout="ignore", hooks=None, enable_attention_hooks=False):
-    clip_pretrained, _ = clip.load("ViT-B/32", device='cuda', jit=False)
+    clip_pretrained, _ = clip.load("ViT-B/32", device="cuda", jit=False)
     model = timm.create_model("vit_base_patch32_384", pretrained=pretrained)
 
     hooks = [2, 5, 8, 11] if hooks == None else hooks
-    
+
     pretrained = _make_vit_b32_backbone(
-        model, 
-        features=[96, 192, 384, 768], 
-        hooks=hooks, 
+        model,
+        features=[96, 192, 384, 768],
+        hooks=hooks,
         use_readout=use_readout,
         enable_attention_hooks=False,
     )
@@ -283,7 +264,7 @@ def _make_vit_b32_backbone(
     enable_attention_hooks=False,
 ):
     pretrained = nn.Module()
-    
+
     pretrained.model = model
     pretrained.model.blocks[hooks[0]].register_forward_hook(get_activation("1"))
     pretrained.model.blocks[hooks[1]].register_forward_hook(get_activation("2"))
@@ -296,18 +277,10 @@ def _make_vit_b32_backbone(
     pretrained.model.start_index = start_index
 
     if enable_attention_hooks:
-        pretrained.model.blocks[hooks[0]].attn.register_forward_hook(
-            get_attention("attn_1")
-        )
-        pretrained.model.blocks[hooks[1]].attn.register_forward_hook(
-            get_attention("attn_2")
-        )
-        pretrained.model.blocks[hooks[2]].attn.register_forward_hook(
-            get_attention("attn_3")
-        )
-        pretrained.model.blocks[hooks[3]].attn.register_forward_hook(
-            get_attention("attn_4")
-        )
+        pretrained.model.blocks[hooks[0]].attn.register_forward_hook(get_attention("attn_1"))
+        pretrained.model.blocks[hooks[1]].attn.register_forward_hook(get_attention("attn_2"))
+        pretrained.model.blocks[hooks[2]].attn.register_forward_hook(get_attention("attn_3"))
+        pretrained.model.blocks[hooks[3]].attn.register_forward_hook(get_attention("attn_4"))
         pretrained.attention = attention
 
     readout_oper = get_readout_oper(vit_features, features, use_readout, start_index)
@@ -315,7 +288,9 @@ def _make_vit_b32_backbone(
     pretrained.act_postprocess1 = nn.Sequential(
         readout_oper[0],
         Transpose(1, 2),
-        nn.Unflatten(2, torch.Size([size[0] // pretrained.model.patch_size[1], size[1] // pretrained.model.patch_size[0]])),
+        nn.Unflatten(
+            2, torch.Size([size[0] // pretrained.model.patch_size[1], size[1] // pretrained.model.patch_size[0]])
+        ),
         nn.Conv2d(
             in_channels=vit_features,
             out_channels=features[0],
@@ -338,7 +313,9 @@ def _make_vit_b32_backbone(
     pretrained.act_postprocess2 = nn.Sequential(
         readout_oper[1],
         Transpose(1, 2),
-        nn.Unflatten(2, torch.Size([size[0] // pretrained.model.patch_size[1], size[1] // pretrained.model.patch_size[0]])),
+        nn.Unflatten(
+            2, torch.Size([size[0] // pretrained.model.patch_size[1], size[1] // pretrained.model.patch_size[0]])
+        ),
         nn.Conv2d(
             in_channels=vit_features,
             out_channels=features[1],
@@ -361,7 +338,9 @@ def _make_vit_b32_backbone(
     pretrained.act_postprocess3 = nn.Sequential(
         readout_oper[2],
         Transpose(1, 2),
-        nn.Unflatten(2, torch.Size([size[0] // pretrained.model.patch_size[1], size[1] // pretrained.model.patch_size[0]])),
+        nn.Unflatten(
+            2, torch.Size([size[0] // pretrained.model.patch_size[1], size[1] // pretrained.model.patch_size[0]])
+        ),
         nn.Conv2d(
             in_channels=vit_features,
             out_channels=features[2],
@@ -385,7 +364,9 @@ def _make_vit_b32_backbone(
     pretrained.act_postprocess4 = nn.Sequential(
         readout_oper[3],
         Transpose(1, 2),
-        nn.Unflatten(2, torch.Size([size[0] // pretrained.model.patch_size[1], size[1] // pretrained.model.patch_size[0]])),
+        nn.Unflatten(
+            2, torch.Size([size[0] // pretrained.model.patch_size[1], size[1] // pretrained.model.patch_size[0]])
+        ),
         nn.Conv2d(
             in_channels=vit_features,
             out_channels=features[3],
@@ -394,13 +375,11 @@ def _make_vit_b32_backbone(
             padding=0,
         ),
     )
-    
+
     # We inject this function into the VisionTransformer instances so that
     # we can use it with interpolated position embeddings without modifying the library source.
     pretrained.model.forward_flex = types.MethodType(forward_flex, pretrained.model)
-    pretrained.model._resize_pos_embed = types.MethodType(
-        _resize_pos_embed, pretrained.model
-    )
+    pretrained.model._resize_pos_embed = types.MethodType(_resize_pos_embed, pretrained.model)
 
     return pretrained
 
@@ -426,18 +405,10 @@ def _make_vit_b16_backbone(
     pretrained.activations = activations
 
     if enable_attention_hooks:
-        pretrained.model.blocks[hooks[0]].attn.register_forward_hook(
-            get_attention("attn_1")
-        )
-        pretrained.model.blocks[hooks[1]].attn.register_forward_hook(
-            get_attention("attn_2")
-        )
-        pretrained.model.blocks[hooks[2]].attn.register_forward_hook(
-            get_attention("attn_3")
-        )
-        pretrained.model.blocks[hooks[3]].attn.register_forward_hook(
-            get_attention("attn_4")
-        )
+        pretrained.model.blocks[hooks[0]].attn.register_forward_hook(get_attention("attn_1"))
+        pretrained.model.blocks[hooks[1]].attn.register_forward_hook(get_attention("attn_2"))
+        pretrained.model.blocks[hooks[2]].attn.register_forward_hook(get_attention("attn_3"))
+        pretrained.model.blocks[hooks[3]].attn.register_forward_hook(get_attention("attn_4"))
         pretrained.attention = attention
 
     readout_oper = get_readout_oper(vit_features, features, use_readout, start_index)
@@ -528,8 +499,6 @@ def _make_vit_b16_backbone(
     # We inject this function into the VisionTransformer instances so that
     # we can use it with interpolated position embeddings without modifying the library source.
     pretrained.model.forward_flex = types.MethodType(forward_flex, pretrained.model)
-    pretrained.model._resize_pos_embed = types.MethodType(
-        _resize_pos_embed, pretrained.model
-    )
+    pretrained.model._resize_pos_embed = types.MethodType(_resize_pos_embed, pretrained.model)
 
     return pretrained

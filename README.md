@@ -32,7 +32,7 @@ $ bash install.bash
 ```
 Start the jupyter notebook
 ```bash
-$ jupyter notebook demo.ipynb
+$ python -m notebook demo.ipynb
 ```
 
 

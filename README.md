@@ -21,18 +21,18 @@ Try VLMaps creation and landmark indexing in [![Open In Colab](https://colab.res
 To begin on your own machine, clone this repository locally
 ```bash
 git clone https://github.com/vlmaps/vlmaps.git
-
 ```
 Install requirements:
 ```bash
-$ conda create -n vlmaps python=3.8  # or use virtualenv
+$ conda create -n vlmaps python=3.8 -y  # or use virtualenv
 $ conda activate vlmaps
+$ conda install jupyter -y
 $ cd vlmaps
 $ bash install.bash
 ```
 Start the jupyter notebook
 ```bash
-$ python -m notebook demo.ipynb
+$ jupyter notebook demo.ipynb
 ```
 
 

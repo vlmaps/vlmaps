@@ -45,12 +45,13 @@ $ jupyter notebook demo.ipynb
 If you find the dataset or code useful, please cite:
 
 ```bibtex
-@article{huang22vlmaps,
-  title     = {Visual Language Maps for Robot Navigation},
-  author    = {Chenguang Huang and Oier Mees and Andy Zeng and Wolfram Burgard},
-  journal   = {arXiv preprint arXiv:2210.05714},
-  year      = {2022},
-}
+@inproceedings{huang23vlmaps,
+               title={Visual Language Maps for Robot Navigation},
+               author={Chenguang Huang and Oier Mees and Andy Zeng and Wolfram Burgard},
+               booktitle = {Proceedings of the IEEE International Conference on Robotics and Automation (ICRA)},
+               year={2023},
+               address = {London, UK}
+} 
 ```
 
 ## License

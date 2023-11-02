@@ -1,0 +1,15 @@
+defaults:
+  - data_paths: mac
+  - map_config: vlmaps
+  - params: default
+  - _self_
+nav:
+  valid_range: 1
+  vis: False
+  tasks_per_scene: 20
+scene_id: 0
+
+# indexing params
+decay_rate: 0.01
+index_2d: True
+init_categories: True

@@ -1,0 +1,33 @@
+map_type: "vlmap" # "vlmap", "gt", "clip", "clip_gradcam", "vlmaps_lseg_3d"
+pose_info:
+  pose_type: mobile_base # mobile_base, camera
+  camera_height: 1.5
+  # if pose_type is camera, the following parameters are ignored
+  base2cam_rot: [1, 0, 0, 0, -1, 0, 0, 0, -1]
+  base_forward_axis: [0, 0, -1]
+  base_left_axis: [-1, 0, 0]
+  base_up_axis: [0, 1, 0]
+cam_calib_mat: [540, 0, 540, 0, 540, 360, 0, 0, 1]
+grid_size: ${params.gs}
+cell_size: ${params.cs}
+depth_sample_rate: 100
+dilate_iter: 3
+gaussian_sigma: 1.0
+customize_obstacle_map: False
+potential_obstacle_names:
+  - "chair"
+  - "wall"
+  - "wall above the door"
+  - "table"
+  - "window"
+  - "floor"
+  - "stairs"
+  - "other"
+obstacle_names:
+  - "wall"
+  - "chair"
+  - "table"
+  - "window"
+  - "stairs"
+  - "other"
+categories: "mp3d" # "mp3d", "ai2thor"

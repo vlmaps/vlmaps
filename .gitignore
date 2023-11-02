@@ -1,4 +1,5 @@
 *__pycache__
+*.DS_Store
 runs
 distance_prediction
 features

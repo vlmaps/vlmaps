@@ -1,0 +1,11 @@
+defaults:
+  - data_paths: mac
+  - map_config: vlmaps
+  - params: default
+  - _self_
+nav:
+  valid_range: 1
+  vis: False
+  tasks_per_scene: 20
+# scene_id: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+scene_id: 0

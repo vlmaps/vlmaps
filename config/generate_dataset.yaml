@@ -1,0 +1,22 @@
+defaults:
+  - data_paths: mac
+
+scene_names:
+  - 5LpN3gDmAk7_1
+  - gTV8FGcVJC9_1
+  - jh4fc5c5qoQ_1
+  - JmbYfDe2QKZ_1
+  - JmbYfDe2QKZ_2
+  - mJXqzFtmKg4_1
+  - ur6pFq6Qu1A_1
+  - UwV83HsGsw3_1
+  - Vt2qJdWjCF2_1
+  - YmJkqBEsHnH_1
+data_cfg:
+  rgb: true
+  depth: true
+  semantic: true
+  resolution:
+    w: 1080
+    h: 720
+  camera_height: 1.5

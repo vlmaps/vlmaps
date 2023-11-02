@@ -1,0 +1,54 @@
+gs: 1000
+cs: 0.05
+camera_height: 1.5
+map_type: "vlmaps_lseg_3d" # "lseg", "gt", "clip", "clip_gradcam", "vlmaps_lseg_3d"
+forward_dist: 0.1 # 0.05
+turn_angle: 5 #1
+sim_setting:
+  default_agent: 0
+  sensor_height: ${params.camera_height}
+  color_sensor: True
+  depth_sensor: False
+  semantic_sensor: False
+  lidar_sensor: False
+  move_forward: ${params.forward_dist}
+  turn_left: ${params.turn_angle}
+  turn_right: ${params.turn_angle}
+  width: 640 # 1920
+  height: 480 # 1080
+  enable_physics: False
+  seed: 1
+  lidar_fov: 360
+  depth_img_for_lidar_n: 20
+  img_save_dir: "/tmp"
+# map_config:
+#   grid_size: ${params.gs}
+#   cell_size: ${params.cs}
+#   dilate_iter: 5
+#   gaussian_sigma: 1.0
+#   potential_obstacle_names:
+#     - "chair"
+#     - "wall"
+#     - "wall above the door"
+#     - "table"
+#     - "window"
+#     - "floor"
+#     - "stairs"
+#     - "other"
+#   obstacle_names:
+#     - "wall"
+#     - "chair"
+#     - "table"
+#     - "window"
+#     - "stairs"
+#     - "other"
+#   categories: "mp3d" # "mp3d", "ai2thor"
+sound_map_config:
+  map_type: "wav2clip" # "clap" "audioclip" "wav2clip"
+  detect_mode: "retrieval" # "classification" "retrieval"
+controller_config:
+  gs: ${params.gs}
+  cs: ${params.cs}
+  forward_dist: ${params.forward_dist}
+  turn_angle: ${params.turn_angle}
+  goal_dist_thres: 0.1

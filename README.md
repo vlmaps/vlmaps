@@ -26,6 +26,7 @@ Try VLMaps creation and landmark indexing in [![Open In Colab](https://colab.res
 To begin on your own machine, clone this repository locally
 ```bash
 git clone https://github.com/vlmaps/vlmaps.git
+git checkout demo
 ```
 Install requirements:
 ```bash

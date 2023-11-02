@@ -1,5 +1,5 @@
 defaults:
-  - data_paths: mac
+  - data_paths: default
   - map_config: vlmaps
   - params: default
   - _self_

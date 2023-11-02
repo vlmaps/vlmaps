@@ -109,23 +109,23 @@ unzip v1/tasks/mp3d_habitat.zip
     * Change `rgb`, `depth`, and `semantic` to `true` to generate corresponding data, and to `false` to ignore corresponding data.
     * Change `camera_height` to change the height of camera relative to the robot base
 
-```bash
-# go to <REPO_ROOT>/dataset of this repository
-cd dataset
-# the generated dataset will be in the same
-python generate_dataset.py
-```
+    ```bash
+    # go to <REPO_ROOT>/dataset of this repository
+    cd dataset
+    # the generated dataset will be in the same
+    python generate_dataset.py
+    ```
 
 ## Create a VLMap with the Generated Dataset
 * Change the value for `defaults/data_paths` in `config/map_creation_cfg.yaml` to `default`.
 * Change the `habitat_scene_dir` and `vlmaps_data_dir` in `config/data_paths/default.yaml` according to the steps in the **Generate Dataset** section above.
 * Run the following command to build the VLMap. The code builds a 3D map where each voxel contains the LSeg embedding.
-  ```bash
-  cd application
-  python create_map.py
-  ```
+    ```bash
+    cd application
+    python create_map.py
+    ```
 
-![](media/vlmaps_process.gif)
+    ![](media/vlmaps_process.gif)
 
 ### Config the Created VLMap
 * Change the scene you want to generate VLMap for by changing `scene_id` (0-9) in `config/map_creation_cfg.yaml`
@@ -144,10 +144,10 @@ python generate_dataset.py
 * Change the value for `defaults/data_paths` in `config/map_indexing_cfg.yaml` to `default`.
 * Change the `habitat_scene_dir` and `vlmaps_data_dir` in `config/data_paths/default.yaml` according to the steps in the **Generate Dataset** section above.
 * Run the following command to index a VLMap you built
-  ```bash
-  cd application
-  python index_map.py
-  ```
+    ```bash
+    cd application
+    python index_map.py
+    ```
 
 ### Configure the Indexing
 * Change the file `config/map_indexing_cfg.yaml`

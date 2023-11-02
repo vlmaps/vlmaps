@@ -6,10 +6,6 @@ from omegaconf import DictConfig, OmegaConf
 
 from vlmaps.map.map import Map
 
-# from utils.map import SoundMap, CLIPSparseMap, ConceptFusion3D
-# from utils.clip_mapping_utils import load_clip_sparse_map
-# from utils.audio_utils import get_level_categories
-
 from typing import List, Tuple, Dict, Any
 
 

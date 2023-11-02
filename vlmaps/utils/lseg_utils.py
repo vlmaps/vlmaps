@@ -1,13 +1,8 @@
-import time
-import os
-import argparse
 import math
 
 import numpy as np
 import cv2
 import torch
-import torchvision.transforms as transforms
-import clip
 
 from matplotlib import pyplot as plt
 

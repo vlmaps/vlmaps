@@ -26,15 +26,6 @@ from vlmaps.utils.index_utils import find_similar_category_id
 from vlmaps.utils.habitat_utils import make_cfg, tf2agent_state, agent_state2tf, display_sample
 from vlmaps.utils.matterport3d_categories import mp3dcat
 
-# from utils.localization_utils import HLocLocalizer, get_frames_tfs, get_cam_pose_habitat
-# from utils.clip_mapping_utils import *
-# from utils.clip_utils import *
-# from utils.utils import *
-# from utils.planning_utils import *
-# from utils.lseg_navigator import *
-# from utils.data_collect_utils import *
-# from evaluation.nav_evaluator import *
-
 from typing import List, Tuple, Dict, Any, Union
 
 

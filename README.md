@@ -208,6 +208,15 @@ If you find the dataset or code useful, please cite:
 } 
 ```
 
+## TODO
+- [ ] **Refactor Other Mappings**
+  - [ ] gradcam_map.py
+  - [ ] clip_map.py
+  - [ ] gtmap.py
+- [ ] **Improve Navigation Stack (Looking for Contributions from the Community)**
+  - [ ] the code currently uses `pyvisgraph` to build covisibility graph based on an obstacle map for navigation, which often leads to getting stuck or collisions when the robot navigates at the corner of objects (like the corner of the table). The current solution is to dilate the obstacle map before building the covisibility graph, but this will leads to closing of narrow passages (half-open door becomes closed door). I am happy to discuss solutions to this.
+  - [ ] navigation stack on real robot with LiDAR, RGBD camera and other sensors.
+
 ## License
 
 MIT License

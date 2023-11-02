@@ -119,7 +119,7 @@ python generate_dataset.py
 ## Create a VLMap with the Generated Dataset
 * Change the value for `defaults/data_paths` in `config/map_creation_cfg.yaml` to `default`.
 * Change the `habitat_scene_dir` and `vlmaps_data_dir` in `config/data_paths/default.yaml` according to the steps in the **Generate Dataset** section above.
-* Run the following command to build the VLMap
+* Run the following command to build the VLMap. The code builds a 3D map where each voxel contains the LSeg embedding.
   ```bash
   cd application
   python create_map.py
@@ -136,7 +136,7 @@ python generate_dataset.py
   * `base_forward_axis`, `base_left_axis`, `base_up_axis`: your robot base coordinate. They mean what is the coordinate of the forward unit vector [1, 0, 0] projected into your robot base frame, the coordinate of the left unit vector [0, 1, 0] projected into your robot base frame, the coordinate of the upward unit vector [0, 0, 1] projected into your robot base frame.
 * Other settings in `config/vlmaps.yaml`
   * `cam_calib_mat` is the flattened camera intrinsics matrix
-  * `depth_sample_rate`: we only back project randomly sampled `h * w / depth_sample_rate` pixels at each frame
+  * `depth_sample_rate`: we only back project randomly sampled `h * w / depth_sample_rate` pixels at each frame. You can change this to a higher value to increase the mapping speed at the cost of having a sparser point cloud at each frame.
 
 ## Index a VLMap
 * Change the value for `defaults/data_paths` in `config/map_indexing_cfg.yaml` to `default`.

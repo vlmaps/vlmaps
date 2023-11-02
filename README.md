@@ -21,12 +21,14 @@ goal navigation without additional data collection or model finetuning.
 ![](https://vlmaps.github.io/static/images/pipeline.png)
 
 # Quick Start
-Try VLMaps creation and landmark indexing in [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1xsH9Gr_O36sBZaoPNq1SmqgOOF12spV0?usp=sharing).
+
+Try VLMaps creation and landmark indexing in [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1xsH9Gr_O36sBZaoPNq1SmqgOOF12spV0?usp=sharing)
+
+## Dependencies installation
 
 To begin on your own machine, clone this repository locally
 ```bash
 git clone https://github.com/vlmaps/vlmaps.git
-git checkout demo
 ```
 Install requirements:
 ```bash
@@ -36,11 +38,22 @@ $ conda install jupyter -y
 $ cd vlmaps
 $ bash install.bash
 ```
+
+## Run Demo
+```bash
+git checkout demo
+```
+
 Start the jupyter notebook
 ```bash
 $ jupyter notebook demo.ipynb
 ```
 
+# Advanced Usage
+Use the `master` branch
+```bash
+git checkout master
+```
 
 ## Generate Dataset
 To build VLMaps for simulated environments, we manually collected 10 sequences of RGB-D videos among 10 scenes in Habitat simulator with Matterport3D dataset. We provide script and pose meta data to generate the RGB-D videos. Please follow the next few steps to generate the dataset.

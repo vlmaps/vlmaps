@@ -125,6 +125,8 @@ python generate_dataset.py
   python create_map.py
   ```
 
+![](media/vlmaps_process.gif)
+
 ### Config the Created VLMap
 * Change the scene you want to generate VLMap for by changing `scene_id` (0-9) in `config/map_creation_cfg.yaml`
 * Customize the map by changing the parameters in `config/params/default.yaml`

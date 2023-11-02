@@ -149,6 +149,8 @@ unzip v1/tasks/mp3d_habitat.zip
     python index_map.py
     ```
 
+    ![](media/vlmaps_index.gif)
+
 ### Configure the Indexing
 * Change the file `config/map_indexing_cfg.yaml`
   * `decay_rate`: set the heatmap decay rate. When it is smaller, the transition of the heat is clearer and covers larger area.

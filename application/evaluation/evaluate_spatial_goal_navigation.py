@@ -42,7 +42,11 @@ def main(config: DictConfig) -> None:
             for line in result_code.split("\n"):
                 print(f"evaluating line: {line}")
                 if line:
-                    eval(line)
+                    # eval(line)
+                    try:
+                        eval(line)
+                    except Exception as e:
+                        print(f"illegal Python code: {line}")
 
             recorded_actions_list = robot.get_recorded_actions()
             robot.set_agent_state(spatial_nav_task.init_hab_tf)

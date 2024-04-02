@@ -116,6 +116,16 @@ unzip v1/tasks/mp3d_habitat.zip
     python generate_dataset.py
     ```
 
+### Collect your own data in Habitat-Sim
+
+Run the following code to collect your own data (for example for scene `gTV8FGcVJC9`):
+
+```python
+python dataset/collect_custom_dataset.py scene_names=["gTV8FGcVJC9"]
+```
+
+The generated data folder will be `<scene_name>_<id>` under `vlmaps_data_dir` in `config/data_paths/default.yaml` (If you already set the `data_paths` to `default`). The `<scene_name>` is `gTV8FGcVJC9` for the above command, and the `<id>` depends on the existing data folders for this scene. If `gTV8FGcVJC9_1` exists, then the new folder name will be `gTV8FGcVJC9_2`.
+
 ## Create a VLMap with the Generated Dataset
 * Change the value for `defaults/data_paths` in `config/map_creation_cfg.yaml` to `default`.
 * Change the `habitat_scene_dir` and `vlmaps_data_dir` in `config/data_paths/default.yaml` according to the steps in the **Generate Dataset** section above.

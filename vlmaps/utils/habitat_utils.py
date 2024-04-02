@@ -94,6 +94,65 @@ def make_sensor_spec(
     return sensor_spec
 
 
+def keyboard_control_fast():
+    k = cv2.waitKey(1)
+    if k == ord("a"):
+        action = "turn_left"
+    elif k == ord("d"):
+        action = "turn_right"
+    elif k == ord("w"):
+        action = "move_forward"
+    elif k == ord("q"):
+        action = "stop"
+    elif k == ord(" "):
+        return k, "record"
+    elif k == -1:
+        return k, None
+    else:
+        return -1, None
+    return k, action
+
+
+def show_rgb(obs):
+    bgr = cv2.cvtColor(obs["color_sensor"], cv2.COLOR_RGB2BGR)
+    cv2.imshow("rgb", bgr)
+
+
+def save_state(root_save_dir, sim_setting, agent_state, save_count):
+    save_name = sim_setting["scene"].split("/")[-1].split(".")[0] + f"_{save_count:06}.txt"
+    save_dir = os.path.join(root_save_dir, "pose")
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, save_name)
+
+    pos = agent_state.position
+    quat = [
+        agent_state.rotation.x,
+        agent_state.rotation.y,
+        agent_state.rotation.z,
+        agent_state.rotation.w,
+    ]
+    with open(save_path, "w") as f:
+        f.write(f"{pos[0]}\t{pos[1]}\t{pos[2]}\t{quat[0]}\t{quat[1]}\t{quat[2]}\t{quat[3]}")
+
+
+def save_states(save_dir, agent_states):
+    save_path = Path(save_dir) / "poses.txt"
+    print(save_path)
+
+    with open(save_path, "w") as f:
+        sep = ""
+        for agent_state in agent_states:
+            pos = agent_state.position
+            quat = [
+                agent_state.rotation.x,
+                agent_state.rotation.y,
+                agent_state.rotation.z,
+                agent_state.rotation.w,
+            ]
+            f.write(f"{sep}{pos[0]}\t{pos[1]}\t{pos[2]}\t{quat[0]}\t{quat[1]}\t{quat[2]}\t{quat[3]}")
+            sep = "\n"
+
+
 def save_obs(
     root_save_dir: Union[str, Path], sim_setting: Dict, observations: Dict, save_id: int, obj2cls: Dict
 ) -> None:

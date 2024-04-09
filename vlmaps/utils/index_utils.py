@@ -174,6 +174,10 @@ def get_dynamic_obstacles_map_3d(
     # new_obstacles = obstacles_segment_map != 1
     new_obstacles = np.zeros_like(obstacles_cropped, dtype=bool)
     obs_pts = grid_pos[pts_mask]
+    mask1 = np.logical_and(obs_pts[:, 0] - rmin >= 0, obs_pts[:, 1] - cmin >= 0) 
+    mask2 = np.logical_and(obs_pts[:, 0] - rmin < new_obstacles.shape[0], obs_pts[ :, 1 ] - cmin < new_obstacles.shape[1])
+    mask = np.logical_and(mask1, mask2)
+    new_obstacles[obs_pts[mask, 0] - rmin, obs_pts[mask, 1] - cmin] = 1
     new_obstacles[obs_pts[:, 0] - rmin, obs_pts[:, 1] - cmin] = 1
     new_obstacles = np.logical_and(new_obstacles, all_obstacles_mask)
     new_obstacles = np.logical_not(new_obstacles)

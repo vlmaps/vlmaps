@@ -16,6 +16,8 @@ from vlmaps.utils.matterport3d_categories import mp3dcat
     config_name="spatial_goal_navigation_cfg",
 )
 def main(config: DictConfig) -> None:
+    os.environ["MAGNUM_LOG"] = "quiet"
+    os.environ["HABITAT_SIM_LOG"] = "quiet"
     data_dir = Path(config.data_paths.vlmaps_data_dir) / "vlmaps_dataset"
     robot = HabitatLanguageRobot(config)
     spatial_nav_task = HabitatSpatialGoalNavigationTask(config)

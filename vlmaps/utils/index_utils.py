@@ -5,7 +5,7 @@ import openai
 from vlmaps.utils.clip_utils import get_text_feats, multiple_templates
 
 
-def find_similar_category_id(class_name, classes_list):
+def find_similar_category_id_deprecate(class_name, classes_list):
     """
     Return the id of the most similar name to class_name in classes_list
     """
@@ -30,6 +30,46 @@ def find_similar_category_id(class_name, classes_list):
     result = response["choices"][0]["text"].strip()
     print(f"Similar category of {class_name} is {result}")
     return classes_list.index(result)
+
+def find_similar_category_id(class_name, classes_list):
+    if class_name in classes_list:
+        return classes_list.index(class_name)
+    import openai
+
+    openai_key = os.environ["OPENAI_KEY"]
+    openai.api_key = openai_key
+    classes_list_str = ",".join(classes_list)
+    client = openai.OpenAI(api_key=openai_key)
+    response = client.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[
+            {
+                "role": "user",
+                "content": "What is television most relevant to among tv_monitor,plant,chair",
+            },
+            {
+                "role": "assistant",
+                "content": "tv_monitor"
+            },
+            {
+                "role": "user",
+                "content": "What is drawer most relevant to among tv_monitor,chest_of_drawers,chair"
+            },
+            {
+                "role": "assistant",
+                "content": "chest_of_drawer"
+            },
+            {
+                "role": "user",
+                "content": f"What is {class_name} most relevant to among {classes_list_str}"
+            }
+        ],
+        max_tokens=300,
+    )
+
+    text = response.choices[0].message.content
+    print(text)
+    return classes_list.index(text)
 
 
 def get_segment_islands_pos(segment_map, label_id, detect_internal_contours=False):

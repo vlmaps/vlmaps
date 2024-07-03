@@ -10,12 +10,14 @@ from omegaconf import DictConfig
 import torch
 import gdown
 import open3d as o3d
+import h5py
 
 from vlmaps.utils.lseg_utils import get_lseg_feat
 from vlmaps.utils.mapping_utils import (
     load_3d_map,
     save_3d_map,
     cvt_pose_vec2tf,
+    load_depth_img,
     load_depth_npy,
     depth2pc,
     transform_pc,
@@ -27,12 +29,17 @@ from vlmaps.lseg.modules.models.lseg_net import LSegEncNet
 
 
 def visualize_pc(pc: np.ndarray):
+    """Take (N, 3) point cloud and visualize it using open3d.
+
+    Args:
+        pc (np.ndarray): (N, 3) point cloud
+    """
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(pc)
     o3d.visualization.draw_geometries([pcd])
 
 
-class VLMapBuilder:
+class VLMapBuilderCam:
     def __init__(
         self,
         data_dir: Path,
@@ -52,75 +59,79 @@ class VLMapBuilder:
         self.base_transform = base_transform
         self.rot_type = map_config.pose_info.rot_type
 
-    def create_mobile_base_map(self):
+    def create_camera_map(self):
         """
-        build the 3D map centering at the first base frame
+        build a map centering at the global original frame. The poses are camera pose in the global coordinate frame.
         """
         # access config info
-        camera_height = self.map_config.pose_info.camera_height
         cs = self.map_config.cell_size
         gs = self.map_config.grid_size
         depth_sample_rate = self.map_config.depth_sample_rate
-
-        self.base_poses = np.loadtxt(self.pose_path)
+        self.camera_pose_tfs = np.loadtxt(self.pose_path)
         if self.rot_type == "quat":
-            self.init_base_tf = cvt_pose_vec2tf(self.base_poses[0])
+            self.camera_pose_tfs = [cvt_pose_vec2tf(x) for x in self.camera_pose_tfs]
         elif self.rot_type == "mat":
-            self.init_base_tf = self.base_poses[0].reshape((4, 4))
+            self.camera_pose_tfs = [x.reshape((4, 4)) for x in self.camera_pose_tfs]
         else:
             raise ValueError("Invalid rotation type")
-        self.init_base_tf = self.base_transform @ self.init_base_tf @ np.linalg.inv(self.base_transform)
-        self.inv_init_base_tf = np.linalg.inv(self.init_base_tf)
-        self.init_cam_tf = self.init_base_tf @ self.base2cam_tf
-        self.inv_init_cam_tf = np.linalg.inv(self.init_cam_tf)
 
-        self.map_save_dir = self.data_dir / "vlmap"
+        self.map_save_dir = self.data_dir / "vlmap_cam"
         os.makedirs(self.map_save_dir, exist_ok=True)
-        self.map_save_path = self.map_save_dir / "vlmaps.h5df"
+        self.map_save_path = self.map_save_dir / "vlmaps_cam.h5df"
 
         # init lseg model
         lseg_model, lseg_transform, crop_size, base_size, norm_mean, norm_std = self._init_lseg()
 
-        # init the map
-        (
-            vh,
-            grid_feat,
-            grid_pos,
-            weight,
-            occupied_ids,
-            grid_rgb,
-            mapped_iter_set,
-            max_id,
-        ) = self._init_map(camera_height, cs, gs, self.map_save_path)
-
         # load camera calib matrix in config
         calib_mat = np.array(self.map_config.cam_calib_mat).reshape((3, 3))
-        cv_map = np.zeros((gs, gs, 3), dtype=np.uint8)
-        height_map = -100 * np.ones((gs, gs), dtype=np.float32)
 
-        pbar = tqdm(zip(self.rgb_paths, self.depth_paths, self.base_poses), total=len(self.rgb_paths))
-        for frame_i, (rgb_path, depth_path, base_posevec) in enumerate(pbar):
-            # load data
-            if self.rot_type == "quat":
-                habitat_base_pose = cvt_pose_vec2tf(base_posevec)
-            elif self.rot_type == "mat":
-                habitat_base_pose = base_posevec.reshape((4, 4))
-            else:
-                raise ValueError("Invalid rotation type")
-            base_pose = self.base_transform @ habitat_base_pose @ np.linalg.inv(self.base_transform)
-            tf = self.inv_init_base_tf @ base_pose
-
-            # theta = np.arctan2(tf[1, 0], tf[0, 0])
-            # theta_deg = np.rad2deg(theta)
-            # row, col, _ = base_pos2grid_id_3d(gs, cs, tf[0, 3], tf[1, 3], tf[2, 3])
-            # trow, tcol, _ = base_pos2grid_id_3d(gs, cs, tf[0, 3] + tf[0, 0], tf[1, 3] + tf[1, 0], tf[2, 3])
-
-            # cv2.circle(topdown, (col, row), 3, (0, 0, 255), -1)
-            # cv2.circle(topdown, (tcol, trow), 3, (0, 255, 0), -1)
-
+        # get global pcd
+        pbar = tqdm(
+            zip(self.rgb_paths, self.depth_paths, self.camera_pose_tfs),
+            total=len(self.rgb_paths),
+            desc="Get Global Map",
+        )
+        global_pcd = o3d.geometry.PointCloud()
+        for frame_i, (rgb_path, depth_path, camera_pose_tf) in enumerate(pbar):
+            if frame_i % self.map_config.skip_frame != 0:
+                continue
             bgr = cv2.imread(str(rgb_path))
             rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-            depth = load_depth_npy(depth_path)
+            depth = load_depth_npy(depth_path.as_posix())
+            pc = self._backproject_depth(depth, calib_mat, depth_sample_rate, min_depth=0.1, max_depth=10)
+            transform_tf = camera_pose_tf  # @ self.habitat2cam_rot_tf
+            pc_global = transform_pc(pc, transform_tf)  # (3, N)
+            pcd_global = o3d.geometry.PointCloud()
+            pcd_global.points = o3d.utility.Vector3dVector(pc_global.T)
+            global_pcd += pcd_global
+            # downsample global_pcd
+            # if frame_i % (100 * self.map_config.skip_frame) == 99:
+            #     global_pcd = global_pcd.voxel_down_sample(voxel_size=0.05)
+
+            # if frame_i % 50 == 0:
+            #     o3d.visualization.draw_geometries([global_pcd])
+
+        self.pcd_min = np.min(np.asarray(global_pcd.points), axis=0)
+        self.pcd_max = np.max(np.asarray(global_pcd.points), axis=0)
+
+        grid_feat, grid_pos, weight, occupied_ids, grid_rgb, mapped_iter_set, max_id = self._init_map(
+            self.pcd_min, self.pcd_max, cs, self.map_save_path
+        )
+
+        cv_map = np.zeros((self.grid_size[0], self.grid_size[2], 3), dtype=np.uint8)
+        height_map = -100 * np.ones(self.grid_size[[0, 2]], dtype=np.float32)
+
+        pbar = tqdm(zip(self.rgb_paths, self.depth_paths, self.camera_pose_tfs), total=len(self.rgb_paths))
+        for frame_i, (rgb_path, depth_path, camera_pose_tf) in enumerate(pbar):
+            if frame_i > 10:
+                break
+            if frame_i % self.map_config.skip_frame != 0:
+                continue
+            if frame_i in mapped_iter_set:
+                continue
+            bgr = cv2.imread(str(rgb_path))
+            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+            depth = load_depth_npy(depth_path.as_posix())
 
             # # get pixel-aligned LSeg features
             pix_feats = get_lseg_feat(
@@ -129,21 +140,21 @@ class VLMapBuilder:
             pix_feats_intr = get_sim_cam_mat(pix_feats.shape[2], pix_feats.shape[3])
 
             # backproject depth point cloud
-            pc = self._backproject_depth(depth, calib_mat, depth_sample_rate, min_depth=0.1, max_depth=6)
+            pc = self._backproject_depth(depth, calib_mat, depth_sample_rate, min_depth=0.1, max_depth=100)
 
             # transform the point cloud to global frame (init base frame)
-            # pc_transform = self.inv_init_base_tf @ self.base_transform @ habitat_base_pose @ self.base2cam_tf
-            pc_transform = tf @ self.base_transform @ self.base2cam_tf
-            pc_global = transform_pc(pc, pc_transform)  # (3, N)
+            transform_tf = camera_pose_tf  # @ self.habitat2cam_rot_tf
+            pc_global = transform_pc(pc, transform_tf)  # (3, N)
 
             for i, (p, p_local) in enumerate(zip(pc_global.T, pc.T)):
-                row, col, height = base_pos2grid_id_3d(gs, cs, p[0], p[1], p[2])
-                if self._out_of_range(row, col, height, gs, vh):
-                    continue
+                row, height, col = np.round(((p - self.pcd_min) / cs)).astype(int)
 
                 px, py, pz = project_point(calib_mat, p_local)
                 rgb_v = rgb[py, px, :]
                 px, py, pz = project_point(pix_feats_intr, p_local)
+                if row >= height_map.shape[0] or col >= height_map.shape[1] or row < 0 or col < 0:
+                    print("out of range")
+                    continue
 
                 if height > height_map[row, col]:
                     height_map[row, col] = height
@@ -152,7 +163,9 @@ class VLMapBuilder:
                 # when the max_id exceeds the reserved size,
                 # double the grid_feat, grid_pos, weight, grid_rgb lengths
                 if max_id >= grid_feat.shape[0]:
-                    self._reserve_map_space(grid_feat, grid_pos, weight, grid_rgb)
+                    grid_feat, grid_pos, weight, grid_rgb = self._reserve_map_space(
+                        grid_feat, grid_pos, weight, grid_rgb
+                    )
 
                 # apply the distance weighting according to
                 # ConceptFusion https://arxiv.org/pdf/2302.07241.pdf Sec. 4.1, Feature fusion
@@ -175,56 +188,69 @@ class VLMapBuilder:
                         grid_feat[occupied_id] = (
                             grid_feat[occupied_id] * weight[occupied_id] + feat.flatten() * alpha
                         ) / (weight[occupied_id] + alpha)
+                        if weight[occupied_id] + alpha == 0:
+                            print("weight is 0")
                         grid_rgb[occupied_id] = (grid_rgb[occupied_id] * weight[occupied_id] + rgb_v * alpha) / (
                             weight[occupied_id] + alpha
                         )
                         weight[occupied_id] += alpha
 
             mapped_iter_set.add(frame_i)
-            if frame_i % 100 == 99:
+            if frame_i % (self.map_config.skip_frame * 100) == self.map_config.skip_frame * 99:
                 print(f"Temporarily saving {max_id} features at iter {frame_i}...")
-                self._save_3d_map(grid_feat, grid_pos, weight, grid_rgb, occupied_ids, mapped_iter_set, max_id)
+                self.save_3d_map(grid_feat, grid_pos, weight, grid_rgb, occupied_ids, mapped_iter_set, max_id)
 
-        self._save_3d_map(grid_feat, grid_pos, weight, grid_rgb, occupied_ids, mapped_iter_set, max_id)
+        self.save_3d_map(grid_feat, grid_pos, weight, grid_rgb, occupied_ids, mapped_iter_set, max_id)
 
-    def create_camera_map(self):
+    def create_mobile_base_map(self):
         """
         TODO: To be implemented
-        build the 3D map centering at the first camera frame. We require that the camera is initialized
-        horizontally (the optical axis is parallel to the floor at the first frame).
+
+        build the 3D map centering at the first base frame.
         """
         return NotImplementedError
 
-    def _init_map(self, camera_height: float, cs: float, gs: int, map_path: Path) -> Tuple:
+    def _init_map(self, pcd_min: np.ndarray, pcd_max: np.ndarray, cs: float, map_path: Path) -> Tuple:
         """
         initialize a voxel grid of size (gs, gs, vh), vh = camera_height / cs, each voxel is of
         size cs
         """
+        grid_size = np.ceil((pcd_max - pcd_min) / cs + 1).astype(int)  # col, height, row
+        self.grid_size = grid_size
+        occupied_ids = -1 * np.ones(grid_size[[0, 2, 1]], dtype=np.int32)
+        grid_feat = np.zeros((grid_size[0] * grid_size[2], self.clip_feat_dim), dtype=np.float32)
+        grid_pos = np.zeros((grid_size[0] * grid_size[2], 3), dtype=np.int32)
+        weight = np.zeros((grid_size[0] * grid_size[2]), dtype=np.float32)
+        grid_rgb = np.zeros((grid_size[0] * grid_size[2], 3), dtype=np.uint8)
         # init the map related variables
-        vh = int(camera_height / cs)
-        grid_feat = np.zeros((gs * gs, self.clip_feat_dim), dtype=np.float32)
-        grid_pos = np.zeros((gs * gs, 3), dtype=np.int32)
-        occupied_ids = -1 * np.ones((gs, gs, vh), dtype=np.int32)
-        weight = np.zeros((gs * gs), dtype=np.float32)
-        grid_rgb = np.zeros((gs * gs, 3), dtype=np.uint8)
         mapped_iter_set = set()
         mapped_iter_list = list(mapped_iter_set)
         max_id = 0
 
         # check if there is already saved map
         if os.path.exists(map_path):
-            (
-                mapped_iter_list,
-                grid_feat,
-                grid_pos,
-                weight,
-                occupied_ids,
-                grid_rgb,
-            ) = load_3d_map(self.map_save_path)
+            (mapped_iter_list, grid_feat, grid_pos, weight, occupied_ids, grid_rgb, pcd_min, pcd_max, cs) = (
+                self.load_3d_map(self.map_save_path)
+            )
             mapped_iter_set = set(mapped_iter_list)
             max_id = grid_feat.shape[0]
+            self.pcd_min = pcd_min
 
-        return vh, grid_feat, grid_pos, weight, occupied_ids, grid_rgb, mapped_iter_set, max_id
+        return grid_feat, grid_pos, weight, occupied_ids, grid_rgb, mapped_iter_set, max_id
+
+    @staticmethod
+    def load_3d_map(map_path: Union[Path, str]):
+        with h5py.File(map_path, "r") as f:
+            mapped_iter_list = f["mapped_iter_list"][:].tolist()
+            grid_feat = f["grid_feat"][:]
+            grid_pos = f["grid_pos"][:]
+            weight = f["weight"][:]
+            occupied_ids = f["occupied_ids"][:]
+            grid_rgb = f["grid_rgb"][:]
+            pcd_min = f["pcd_min"][:]
+            pcd_max = f["pcd_max"][:]
+            cs = f["cs"][()]
+            return mapped_iter_list, grid_feat, grid_pos, weight, occupied_ids, grid_rgb, pcd_min, pcd_max, cs
 
     def _init_lseg(self):
         crop_size = 480  # 480
@@ -313,7 +339,31 @@ class VLMapBuilder:
         )
         return grid_feat, grid_pos, weight, grid_rgb
 
-    def _save_3d_map(
+    def _reserve_grid(
+        self, row: int, col: int, height: int, gs: int, vh: int, init_height_id: int, occupied_ids: np.ndarray
+    ) -> Tuple[int, int]:
+        if not self._out_of_range(row, col, height, gs, vh):
+            print("not out of range")
+            return occupied_ids, init_height_id, vh
+        if height < 0:
+            tmp = -np.ones((gs, gs, -height), dtype=occupied_ids.dtype)
+            print("smaller than 0")
+            print("before: ", occupied_ids.shape)
+            occupied_ids = np.concatenate([occupied_ids, tmp], axis=2)
+            print("after: ", occupied_ids.shape)
+            init_height_id += -height
+            vh += -height
+        elif height >= vh:
+            tmp = -np.ones((gs, gs, height - vh + 1), dtype=occupied_ids.dtype)
+            print("larger and equal than vh")
+            print("before: ", occupied_ids.shape)
+            occupied_ids = np.concatenate([tmp, occupied_ids], axis=2)
+            print("after: ", occupied_ids.shape)
+            init_height_id += height
+            vh += height
+        return occupied_ids, init_height_id, vh
+
+    def save_3d_map(
         self,
         grid_feat: np.ndarray,
         grid_pos: np.ndarray,
@@ -327,4 +377,13 @@ class VLMapBuilder:
         grid_pos = grid_pos[:max_id]
         weight = weight[:max_id]
         grid_rgb = grid_rgb[:max_id]
-        save_3d_map(self.map_save_path, grid_feat, grid_pos, weight, occupied_ids, list(mapped_iter_set), grid_rgb)
+        with h5py.File(self.map_save_path, "w") as f:
+            f.create_dataset("mapped_iter_list", data=np.array(list(mapped_iter_set), dtype=np.int32))
+            f.create_dataset("grid_feat", data=grid_feat)
+            f.create_dataset("grid_pos", data=grid_pos)
+            f.create_dataset("weight", data=weight)
+            f.create_dataset("occupied_ids", data=occupied_ids)
+            f.create_dataset("grid_rgb", data=grid_rgb)
+            f.create_dataset("pcd_min", data=self.pcd_min)
+            f.create_dataset("pcd_max", data=self.pcd_max)
+            f.create_dataset("cs", data=self.map_config.cell_size)

@@ -16,7 +16,7 @@ from vlmaps.utils.mapping_utils import (
     config_name="test_config.yaml",
 )
 def main(config: DictConfig) -> None:
-    data_dir = Path(config.data_paths.vlmaps_data_dir) / "vlmaps_dataset"
+    data_dir = Path(config.data_paths.vlmaps_data_dir)
     robot = HabitatLanguageRobot(config)
     robot.setup_scene(config.scene_id)
     robot.map.init_categories(mp3dcat[1:-1])

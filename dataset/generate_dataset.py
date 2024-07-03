@@ -65,15 +65,18 @@ def main(config: DictConfig) -> None:
     os.environ["MAGNUM_LOG"] = "quiet"
     os.environ["HABITAT_SIM_LOG"] = "quiet"
     os.makedirs(config.data_paths.vlmaps_data_dir, exist_ok=True)
-    dataset_dir = Path(config.data_paths.vlmaps_data_dir) / "vlmaps_dataset"
-    if not dataset_dir.exists():
-        zip_filepath = dataset_dir.parent / "vlmaps_dataset.zip"
+    dataset_dir = Path(config.data_paths.vlmaps_data_dir)
+    os.makedirs(dataset_dir, exist_ok=True)
+    zip_filepath = dataset_dir / "vlmaps_dataset.zip"
+    if not zip_filepath.exists():
         gdown.download(
             "https://drive.google.com/file/d/1KaRi1VnY7C_TT1WckDWxHvP4v3MTNu1a/view?usp=sharing",
             zip_filepath.as_posix(),
             fuzzy=True,
         )
-        subprocess.run(["unzip", zip_filepath.as_posix(), "-d", dataset_dir.parent.as_posix()])
+    # subprocess.run(["unzip", zip_filepath.as_posix(), "-d", dataset_dir.parent.as_posix()])
+    subprocess.run(["tar", "zxvf", zip_filepath.as_posix(), "--strip-components=1", "-C", dataset_dir.as_posix()])
+    subprocess.run(["rm", zip_filepath.as_posix()])
 
     data_dirs = sorted([x for x in dataset_dir.iterdir() if x.is_dir()])
     if config.scene_names:

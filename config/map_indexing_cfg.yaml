@@ -11,5 +11,5 @@ scene_id: 0
 
 # indexing params
 decay_rate: 0.01
-index_2d: True
+index_2d: False
 init_categories: True

@@ -17,7 +17,7 @@ from vlmaps.robot.lang_robot import LangRobot
     config_name="map_indexing_cfg.yaml",
 )
 def main(config: DictConfig) -> None:
-    data_dir = Path(config.data_paths.vlmaps_data_dir) / "vlmaps_dataset"
+    data_dir = Path(config.data_paths.vlmaps_data_dir)
     data_dirs = sorted([x for x in data_dir.iterdir() if x.is_dir()])
     robot = LangRobot(config.params)
     # generate obstacles map based on occupancy within a height range

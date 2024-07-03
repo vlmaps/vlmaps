@@ -138,15 +138,18 @@ The generated data folder will be `<scene_name>_<id>` under `vlmaps_data_dir` in
     ![](media/vlmaps_process.gif)
 
 ### Config the Created VLMap
-* Change the scene you want to generate VLMap for by changing `scene_id` (0-9) in `config/map_creation_cfg.yaml`
+* Change the scene you want to generate VLMap for by changing `scene_id` (0-9) in `config/map_creation_cfg.yaml`. If you use your customized data, `scene_id` indicates the id of the sorted subfolder under `vlmaps_data_dir` path you set in `config/paths/default.yaml`.
 * Customize the map by changing the parameters in `config/params/default.yaml`
   * Change the resolution of the map by changing `cs` (cell size in meter) and `gs` (grid size)
 * Customize the camera pose and base pose by changing `config/vlmaps.yaml`. Change the `pose_info` section.
-  * `pose_type` means the type of poses stored in `poses.txt` files. Currently we only support `mobile_base` which means the poses are the poses for the base. But you can implement `camera` if you want.
-  * `camera_height` means the camera height relative to the base. Change it if you set different camera height when you generate the dataset.
-  * `base2cam_rot` means the row-wise flattened rotation matrix from robot base to the camera coordinate frame (z forward, x right, y down).
-  * `base_forward_axis`, `base_left_axis`, `base_up_axis`: your robot base coordinate. They mean what is the coordinate of the forward unit vector [1, 0, 0] projected into your robot base frame, the coordinate of the left unit vector [0, 1, 0] projected into your robot base frame, the coordinate of the upward unit vector [0, 0, 1] projected into your robot base frame.
+  * `pose_type` means the type of poses stored in `poses.txt` files. Set it to `mobile_base` when the poses are the poses for the base on the robot, and set it to `camera_base` when the poses are the poses for the camera. 
+  * `rot_type` means the format of data you save at each line of the `poses.txt` file. Set it to `quat` if you save the pose as `px, py, pz, qx, qy, qz, qw`. Set it to `mat` if you save the flattened (4, 4) transformation matrix at each line. By default, it is set to `quat`.
+  * If you set `pose_type` as `mobile_base`, you should also modify the following parameters in `pose_info`:
+    * `camera_height` means the camera height relative to the base. Change it if you set different camera height when you generate the dataset.
+    * `base2cam_rot` means the row-wise flattened rotation matrix from robot base to the camera coordinate frame (z forward, x right, y down).
+    * `base_forward_axis`, `base_left_axis`, `base_up_axis`: your robot base coordinate. They mean what is the coordinate of the forward unit vector [1, 0, 0] projected into your robot base frame, the coordinate of the left unit vector [0, 1, 0] projected into your robot base frame, the coordinate of the upward unit vector [0, 0, 1] projected into your robot base frame.
 * Other settings in `config/vlmaps.yaml`
+  * `skip_frame` means that only when `frame_i % skip_frame == 0` do we use the frame
   * `cam_calib_mat` is the flattened camera intrinsics matrix
   * `depth_sample_rate`: we only back project randomly sampled `h * w / depth_sample_rate` pixels at each frame. You can change this to a higher value to increase the mapping speed at the cost of having a sparser point cloud at each frame.
 
@@ -206,6 +209,55 @@ In order to test object goal navigation and spatial goal navigation tasks with o
 3. Config `config/spatial_goal_navigation_cfg.json`.
     1. Modify `nav/vis` to `true` to visualize navigation results (POV, topdown trajectory, predicted goal etc.).
     2. Modify `scene_id` to either a number (0~9) or a list `[0,1,3]` to specify which scene to evaluate.
+
+## Application on Customized Datasets
+Many users have the need of using VLMaps on their own dataset including on new simulator or on a real world robot with integration with ROS. Here we provide some hints what we could do to minimize these efforts:
+1. Make sure that you formalize your customized dataset in a scene folder which is the same as one of the generated dataset in Matterport3D:
+  * The `depth` folder should contain npy file, each of which stores the (H, W) array indicating the depth values in meters.
+  * The `poses.txt` should save the pose of the robot base or the camera in the world coordinate frame. For the simplicity, we recommend that you store the camera poses. The relevant parameters will be introduced next.
+  ```
+  # the structure of the vlmaps_data_dir looks like this
+  vlmaps_data_dir
+    |-customized_scene_1
+    |   |-rgb
+    |   |  |-000000.png
+    |   |  |-000001.png
+    |   |-depth
+    |   |  |-000000.npy
+    |   |  |-000001.npy
+    |   |-poses.txt
+    ...
+  ```
+
+2. Set up the path to the dataset. Set up `config/paths/default.yaml` file so that the `vlmaps_data_dir` contains the scene folder as in 1.
+
+3. Set up the pose relevant parameters in `config/map_config/vlmaps.yaml`. Set up the values in `pose_info`.
+  * If the `poses.txt` stores 7-dimension poses (px, py, pz, qx, qy, qz, qw), set the `rot_type` to "quat". If it stores 16-dimensional poses (flattened 4x4 transformation matrix), set the `rot_type` to "mat".
+  * If you store the **camera poses** in your `poses.txt` file:
+    * Set the `pose_type` to `camera_base`.
+    * We assume that the camera frame is `x` right, `y` down, `z` forward.
+    * Ignore the rest of parameters in `pose_info`.
+  * If you store the **robot base poses** in your `poses.txt` file:
+    * Set the `pose_type` to `mobile_base`.
+    * Set the `camera_height` to the height of the camera relative to the base frame.
+    * Set the `base2cam_rot` to the flattened rotation matrix from the camera to the base frame. So here the notation might be a bit misleading. `base2cam_rot` can be used to construct `T_base2cam`. It should play the role of transforming points in the camera frame to the base frame: P_base = T_base2cam @ P_cam.
+    * Set the `base_forward_axis`, `base_left_axis`, `base_up_axis` to the correct uniform 3-dimensinoal vector. In the default ROS setting, `x` is forwarad, `y` is left, `z` is up. So the setting should be:
+      ```
+      base2cam_rot: [ 0, -1, 0, 0, 0, -1, 1, 0, 0]
+      base_forward_axis: [1, 0, 0]
+      base_left_axis: [0, 1, 0]
+      base_up_axis: [0, 0, 1]
+      ```
+4. Set up the camera intrinsics matrix in `config/map_config/vlmaps.yaml`. Set up the values in `cam_calib_mat`.
+
+5. Set up map relevant parameters in `config/params/default.yaml`.
+  * Set up the resolution of the map `cs` (meters / voxel size).
+
+6. Call `python applications/create_map.py` to create the map.
+
+7. Call `python applications/index_map.py` to index the map.
+
+8. Then you can develop your downstream applications.
 
 
 ## Citation

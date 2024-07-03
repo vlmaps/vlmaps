@@ -28,6 +28,7 @@ from vlmaps.utils.visualize_utils import pool_3d_label_to_2d
 #     segment_lseg_map,
 # )
 from vlmaps.map.vlmap_builder import VLMapBuilder
+from vlmaps.map.vlmap_builder_cam import VLMapBuilderCam
 from vlmaps.utils.mapping_utils import load_3d_map
 from vlmaps.map.map import Map
 from vlmaps.utils.index_utils import find_similar_category_id, get_segment_islands_pos, get_dynamic_obstacles_map_3d
@@ -40,57 +41,68 @@ class VLMap(Map):
         self.scores_mat = None
         self.categories = None
 
-        # TODO: check if needed
-        # map_path = os.path.join(map_dir, "grid_lseg_1.npy")
-        # self.map = load_map(map_path)
-        # self.map_cropped = self.map[self.xmin : self.xmax + 1, self.ymin : self.ymax + 1]
-        # self._init_clip()
-        # self._customize_obstacle_map(
-        #     map_config["potential_obstacle_names"],
-        #     map_config["obstacle_names"],
-        #     vis=False,
-        # )
-        # self.obstacles_new_cropped = Map._dilate_map(
-        #     self.obstacles_new_cropped == 0,
-        #     map_config["dilate_iter"],
-        #     map_config["gaussian_sigma"],
-        # )
-        # self.obstacles_new_cropped = self.obstacles_new_cropped == 0
-        # self.load_categories()
-        # print("a VLMap is created")
-        # pass
-
     def create_map(self, data_dir: Union[Path, str]) -> None:
         print(f"Creating map for scene at: ", data_dir)
         self._setup_paths(data_dir)
-        self.map_builder = VLMapBuilder(
-            self.data_dir,
-            self.map_config,
-            self.pose_path,
-            self.rgb_paths,
-            self.depth_paths,
-            self.base2cam_tf,
-            self.base_transform,
-        )
         if self.map_config.pose_info.pose_type == "mobile_base":
+            self.map_builder = VLMapBuilder(
+                self.data_dir,
+                self.map_config,
+                self.pose_path,
+                self.rgb_paths,
+                self.depth_paths,
+                self.base2cam_tf,
+                self.base_transform,
+            )
             self.map_builder.create_mobile_base_map()
-        elif self.map_config.pose_info.pose_type == "camera":
+        elif self.map_config.pose_info.pose_type == "camera_base":
+            self.map_builder = VLMapBuilderCam(
+                self.data_dir,
+                self.map_config,
+                self.pose_path,
+                self.rgb_paths,
+                self.depth_paths,
+                self.base2cam_tf,
+                self.base_transform,
+            )
             self.map_builder.create_camera_map()
+        else:
+            raise ValueError("Invalid pose type")
 
     def load_map(self, data_dir: str) -> bool:
         self._setup_paths(data_dir)
-        self.map_save_path = Path(data_dir) / "vlmap" / "vlmaps.h5df"
-        if not self.map_save_path.exists():
-            print("Loading VLMap failed because the file doesn't exist.")
-            return False
-        (
-            self.mapped_iter_list,
-            self.grid_feat,
-            self.grid_pos,
-            self.weight,
-            self.occupied_ids,
-            self.grid_rgb,
-        ) = load_3d_map(self.map_save_path)
+        print(self.data_dir)
+        if self.map_config.pose_info.pose_type == "mobile_base":
+            self.map_save_path = Path(data_dir) / "vlmap" / "vlmaps.h5df"
+            print(self.map_save_path)
+            if not self.map_save_path.exists():
+                assert False, "Loading VLMap failed because the file doesn't exist."
+            (
+                self.mapped_iter_list,
+                self.grid_feat,
+                self.grid_pos,
+                self.weight,
+                self.occupied_ids,
+                self.grid_rgb,
+            ) = load_3d_map(self.map_save_path)
+        elif self.map_config.pose_info.pose_type == "camera_base":
+            self.map_save_path = Path(data_dir) / "vlmap_cam" / "vlmaps_cam.h5df"
+            print(self.map_save_path)
+            if not self.map_save_path.exists():
+                assert False, "Loading VLMap failed because the file doesn't exist."
+            (
+                self.mapped_iter_list,
+                self.grid_feat,
+                self.grid_pos,
+                self.weight,
+                self.occupied_ids,
+                self.grid_rgb,
+                self.pcd_min,
+                self.pcd_max,
+                self.cs,
+            ) = VLMapBuilderCam.load_3d_map(self.map_save_path)
+        else:
+            raise ValueError("Invalid pose type")
 
         return True
 

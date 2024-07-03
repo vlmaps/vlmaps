@@ -1,12 +1,14 @@
 map_type: "vlmap" # "vlmap", "gt", "clip", "clip_gradcam", "vlmaps_lseg_3d"
 pose_info:
-  pose_type: mobile_base # mobile_base, camera
-  camera_height: 1.5
+  pose_type: mobile_base # mobile_base, camera_base
+  rot_type: "quat" # "mat", or "quat" (x, y, z, w)
   # if pose_type is camera, the following parameters are ignored
+  camera_height: 1.5
   base2cam_rot: [1, 0, 0, 0, -1, 0, 0, 0, -1]
   base_forward_axis: [0, 0, -1]
   base_left_axis: [-1, 0, 0]
   base_up_axis: [0, 1, 0]
+skip_frame: 1
 cam_calib_mat: [540, 0, 540, 0, 540, 360, 0, 0, 1]
 grid_size: ${params.gs}
 cell_size: ${params.cs}

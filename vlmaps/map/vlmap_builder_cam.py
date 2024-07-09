@@ -123,8 +123,6 @@ class VLMapBuilderCam:
 
         pbar = tqdm(zip(self.rgb_paths, self.depth_paths, self.camera_pose_tfs), total=len(self.rgb_paths))
         for frame_i, (rgb_path, depth_path, camera_pose_tf) in enumerate(pbar):
-            if frame_i > 10:
-                break
             if frame_i % self.map_config.skip_frame != 0:
                 continue
             if frame_i in mapped_iter_set:

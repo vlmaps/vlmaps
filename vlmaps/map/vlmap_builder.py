@@ -195,13 +195,13 @@ class VLMapBuilder:
         """
         return NotImplementedError
 
-    def _init_map(self, camera_height: float, cs: float, gs: int, map_path: Path) -> Tuple:
+    def _init_map(self, map_height: float, cs: float, gs: int, map_path: Path) -> Tuple:
         """
-        initialize a voxel grid of size (gs, gs, vh), vh = camera_height / cs, each voxel is of
+        initialize a voxel grid of size (gs, gs, vh), vh = map_height / cs, each voxel is of
         size cs
         """
         # init the map related variables
-        vh = int(camera_height / cs)
+        vh = int(map_height / cs)
         grid_feat = np.zeros((gs * gs, self.clip_feat_dim), dtype=np.float32)
         grid_pos = np.zeros((gs * gs, 3), dtype=np.int32)
         occupied_ids = -1 * np.ones((gs, gs, vh), dtype=np.int32)

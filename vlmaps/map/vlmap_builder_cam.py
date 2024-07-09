@@ -176,13 +176,13 @@ class VLMapBuilderCam:
                 # update map features
                 if not (px < 0 or py < 0 or px >= pix_feats.shape[3] or py >= pix_feats.shape[2]):
                     feat = pix_feats[0, :, py, px]
-                    occupied_id = occupied_ids[row, col, height]
+                    occupied_id = occupied_ids[row, height, col]
                     if occupied_id == -1:
-                        occupied_ids[row, col, height] = max_id
+                        occupied_ids[row, height, col] = max_id
                         grid_feat[max_id] = feat.flatten() * alpha
                         grid_rgb[max_id] = rgb_v
                         weight[max_id] += alpha
-                        grid_pos[max_id] = [row, col, height]
+                        grid_pos[max_id] = [row, height, col]
                         max_id += 1
                     else:
                         grid_feat[occupied_id] = (
@@ -212,12 +212,11 @@ class VLMapBuilderCam:
 
     def _init_map(self, pcd_min: np.ndarray, pcd_max: np.ndarray, cs: float, map_path: Path) -> Tuple:
         """
-        initialize a voxel grid of size (gs, gs, vh), vh = camera_height / cs, each voxel is of
-        size cs
+        initialize a voxel grid of size grid_size = (pcd_max - pcd_min) / cs + 1
         """
         grid_size = np.ceil((pcd_max - pcd_min) / cs + 1).astype(int)  # col, height, row
         self.grid_size = grid_size
-        occupied_ids = -1 * np.ones(grid_size[[0, 2, 1]], dtype=np.int32)
+        occupied_ids = -1 * np.ones(grid_size[[0, 1, 2]], dtype=np.int32)
         grid_feat = np.zeros((grid_size[0] * grid_size[2], self.clip_feat_dim), dtype=np.float32)
         grid_pos = np.zeros((grid_size[0] * grid_size[2], 3), dtype=np.int32)
         weight = np.zeros((grid_size[0] * grid_size[2]), dtype=np.float32)

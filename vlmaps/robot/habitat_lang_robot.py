@@ -112,7 +112,14 @@ class HabitatLanguageRobot(LangRobot):
         """
         if self.sim is not None:
             self.sim.close()
-        self.test_scene = os.path.join(self.test_scene_dir, scene_name, scene_name + ".glb")
+
+        scene_short_name = scene_name.split("-")[-1]
+        self.test_scene = os.path.join(
+            self.test_scene_dir,
+            scene_name,
+            scene_short_name + ".basis.glb",
+        )
+
         self.sim_setting = {
             "scene": self.test_scene,
             **self.config["params"]["sim_setting"],

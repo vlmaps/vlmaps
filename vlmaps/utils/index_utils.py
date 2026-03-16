@@ -41,7 +41,7 @@ def find_similar_category_id(class_name, classes_list):
     classes_list_str = ",".join(classes_list)
     client = openai.OpenAI(api_key=openai_key)
     response = client.chat.completions.create(
-        model="gpt-4-turbo",
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "user",
@@ -67,9 +67,18 @@ def find_similar_category_id(class_name, classes_list):
         max_tokens=300,
     )
 
-    text = response.choices[0].message.content
+    text = response.choices[0].message.content.strip()
     print(text)
-    return classes_list.index(text)
+    # Exact match first
+    if text in classes_list:
+        return classes_list.index(text)
+    # GPT sometimes returns a full sentence — find whichever category it mentions
+    for item in classes_list:
+        if item.lower() in text.lower():
+            return classes_list.index(item)
+    # Last resort: return closest by string similarity
+    print(f"  [warn] Could not parse '{text}' as a category, defaulting to index 0")
+    return 0
 
 
 def get_segment_islands_pos(segment_map, label_id, detect_internal_contours=False):

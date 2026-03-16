@@ -16,7 +16,7 @@ def main(config: DictConfig) -> None:
     os.environ["MAGNUM_LOG"] = "quiet"
     os.environ["HABITAT_SIM_LOG"] = "quiet"
     os.makedirs(config.data_paths.vlmaps_data_dir, exist_ok=True)
-    dataset_dir = Path(config.data_paths.vlmaps_data_dir)
+    dataset_dir = Path(config.data_paths.vlmaps_data_dir) / "vlmaps_dataset"
 
     scene_dirs = []
     for scene_name in config.scene_names:
@@ -43,17 +43,12 @@ def main(config: DictConfig) -> None:
         # img_save_dir += f"{scenes_names[SCENE_ID]}_1"
         # os.makedirs(img_save_dir, exist_ok=True)
 
-        scene_short_name = scene_name.split("-")[1]
-        test_scene = os.path.join(
-            config.data_paths.habitat_scene_dir,
-            scene_name,
-            f"{scene_short_name}.basis.glb",
-        )
+        test_scene = os.path.join(config.data_paths.habitat_scene_dir, scene_name, scene_name + ".glb")
 
         sim_setting = {
             "scene": test_scene,
             "default_agent": 0,
-            "sensor_height": 1.0,
+            "sensor_height": 1.5,
             "color_sensor": True,
             "depth_sensor": True,
             "semantic_sensor": True,
@@ -86,7 +81,6 @@ def main(config: DictConfig) -> None:
         # for obj in objs:
         #     print(obj.id, obj.region.category.name(), obj.category.name(), obj.obb.center, obj.obb.sizes)
         obj2cls = {int(obj.id.split("_")[-1]): (obj.category.index(), obj.category.name()) for obj in scene.objects}
-        obj2cls[0] = (0, "void")
 
         # initialize the agent
         agent = sim.initialize_agent(sim_setting["default_agent"])

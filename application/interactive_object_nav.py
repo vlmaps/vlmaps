@@ -39,17 +39,39 @@ def build_rgb_map_2d(robot) -> np.ndarray:
 
 
 def show_obs(robot, label: str = ""):
-    """Display the robot's current RGB view in an OpenCV window."""
-    rgb = robot.sim.get_sensor_observations(0)["color_sensor"]
+    """Display the robot's first-person and third-person views."""
+    obs = robot.sim.get_sensor_observations(0)
+
+    # First-person view
+    rgb = obs["color_sensor"]
     bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
     if label:
         cv2.putText(bgr, label, (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-    cv2.imshow("Robot view", bgr)
+    cv2.imshow("Robot view (1st person)", bgr)
+
+    # Third-person chase camera (behind the robot)
+    if "back_color_sensor" in obs:
+        back_rgb = obs["back_color_sensor"]
+        back_bgr = cv2.cvtColor(back_rgb, cv2.COLOR_RGB2BGR)
+        if label:
+            cv2.putText(back_bgr, label, (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 200, 0), 2)
+        cv2.imshow("Robot view (3rd person)", back_bgr)
+
     cv2.waitKey(1)
 
 
-def show_map(robot, rgb_map_2d: np.ndarray, category: str = "",
+def compute_heatmap(robot, category: str) -> np.ndarray:
+    """Compute the 2D heatmap for a category once and cache it externally."""
+    mask_3d = robot.map.index_map(category, with_init_cat=True)
+    mask_2d = pool_3d_label_to_2d(mask_3d, robot.map.grid_pos, robot.map.gs)
+    from scipy.ndimage import distance_transform_edt as edt
+    dist = edt(~mask_2d)
+    return np.clip(1.0 - dist * 0.05, 0, 1).astype(np.float32)
+
+
+def show_map(robot, rgb_map_2d: np.ndarray, heatmap_2d: np.ndarray = None,
              path_cells: list = None, label: str = ""):
     """
     Display a top-down semantic map with:
@@ -64,20 +86,11 @@ def show_map(robot, rgb_map_2d: np.ndarray, category: str = "",
     canvas = rgb_map_2d.astype(np.float32).copy()
 
     # ── Semantic heatmap overlay ──────────────────────────────────────────────
-    if category:
-        try:
-            mask_3d = robot.map.index_map(category, with_init_cat=True)
-            mask_2d = pool_3d_label_to_2d(mask_3d, robot.map.grid_pos, gs)
-            # Smooth heatmap from binary mask
-            from scipy.ndimage import distance_transform_edt as edt
-            dist = edt(~mask_2d)
-            heatmap = np.clip(1.0 - dist * 0.05, 0, 1).astype(np.float32)
-            heatmap_u8 = (heatmap * 255).astype(np.uint8)
-            heat_bgr = cv2.applyColorMap(heatmap_u8, cv2.COLORMAP_JET)
-            heat_rgb = heat_bgr[:, :, ::-1].astype(np.float32)
-            canvas = canvas * 0.5 + heat_rgb * 0.5
-        except Exception:
-            pass  # skip overlay if indexing fails
+    if heatmap_2d is not None:
+        heatmap_u8 = (np.clip(heatmap_2d, 0, 1) * 255).astype(np.uint8)
+        heat_bgr = cv2.applyColorMap(heatmap_u8, cv2.COLORMAP_JET)
+        heat_rgb = heat_bgr[:, :, ::-1].astype(np.float32)
+        canvas = canvas * 0.5 + heat_rgb * 0.5
 
     # ── Planned path ──────────────────────────────────────────────────────────
     if path_cells and len(path_cells) > 1:
@@ -169,7 +182,7 @@ def main(config: DictConfig) -> None:
     robot._set_nav_curr_pose()
 
     show_obs(robot, "Ready")
-    show_map(robot, rgb_map_2d, label="Ready")
+    show_map(robot, rgb_map_2d, heatmap_2d=None, label="Ready")
     print("Scene:", robot.vlmaps_data_save_dirs[config.scene_id].name)
 
     # ── Instruction loop ─────────────────────────────────────────────────────
@@ -196,7 +209,6 @@ def main(config: DictConfig) -> None:
         robot.empty_recorded_actions()
         show_obs(robot, "Start")
         show_map(robot, rgb_map_2d, label="Start")
-        cv2.waitKey(500)
 
         for cat in categories:
             cat = cat.strip()
@@ -204,8 +216,10 @@ def main(config: DictConfig) -> None:
                 continue
             print(f"\nPlanning path to: {cat}")
 
-            # Show heatmap for this category while planning
-            show_map(robot, rgb_map_2d, category=cat, label=f"Planning: {cat}")
+            # Compute heatmap ONCE per category (may call LLM API once if needed)
+            print("  Computing semantic heatmap...")
+            heatmap = compute_heatmap(robot, cat)
+            show_map(robot, rgb_map_2d, heatmap_2d=heatmap, label=f"Planning: {cat}")
             cv2.waitKey(200)
 
             robot.empty_recorded_actions()
@@ -227,22 +241,19 @@ def main(config: DictConfig) -> None:
                 robot.sim.step(action)
                 robot._set_nav_curr_pose()
                 show_obs(robot, f"[{i+1}/{n_actions}] -> {cat}")
-                show_map(robot, rgb_map_2d, category=cat,
+                show_map(robot, rgb_map_2d, heatmap_2d=heatmap,
                          label=f"[{i+1}/{n_actions}] -> {cat}")
-                cv2.waitKey(80)
 
             show_obs(robot, f"Arrived: {cat}")
-            show_map(robot, rgb_map_2d, category=cat, label=f"Arrived: {cat}")
+            show_map(robot, rgb_map_2d, heatmap_2d=heatmap, label=f"Arrived: {cat}")
             print(f"  Done.")
-            cv2.waitKey(800)
 
             from vlmaps.utils.habitat_utils import agent_state2tf
             agent_state = robot.sim.get_agent(0).get_state()
             start_tf = agent_state2tf(agent_state)
             robot._set_nav_curr_pose()
 
-        print("\nInstruction complete. Press any key in the window to continue.")
-        cv2.waitKey(0)
+        print("\nInstruction complete.")
 
     cv2.destroyAllWindows()
 

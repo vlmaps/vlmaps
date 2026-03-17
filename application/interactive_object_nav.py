@@ -10,6 +10,8 @@ Usage (from the repository root)
 Controls
 --------
     - A new OpenCV window shows the robot's camera view after every action.
+    - A second window shows the semantic top-down map with the target heatmap
+      and the robot's current position.
     - Press any key in the window to advance to the next step.
     - Type a new instruction at the prompt to run another navigation.
     - Type 'quit' or 'exit' to stop.
@@ -26,6 +28,14 @@ from vlmaps.robot.habitat_lang_robot import HabitatLanguageRobot
 from vlmaps.utils.llm_utils import parse_object_goal_instruction
 from vlmaps.utils.mapping_utils import cvt_pose_vec2tf
 from vlmaps.utils.matterport3d_categories import mp3dcat
+from vlmaps.utils.visualize_utils import pool_3d_label_to_2d, pool_3d_rgb_to_2d
+
+
+# ── Visualization helpers ─────────────────────────────────────────────────────
+
+def build_rgb_map_2d(robot) -> np.ndarray:
+    """Build a top-down RGB map from the loaded VLMap (done once per scene)."""
+    return pool_3d_rgb_to_2d(robot.map.grid_rgb, robot.map.grid_pos, robot.map.gs)
 
 
 def show_obs(robot, label: str = ""):
@@ -39,6 +49,70 @@ def show_obs(robot, label: str = ""):
     cv2.waitKey(1)
 
 
+def show_map(robot, rgb_map_2d: np.ndarray, category: str = "",
+             path_cells: list = None, label: str = ""):
+    """
+    Display a top-down semantic map with:
+      - RGB background of the scene
+      - Heatmap overlay for the queried category (if provided)
+      - Planned path drawn as a blue polyline
+      - Robot's current position as a green circle
+    """
+    gs = robot.map.gs
+
+    # ── Base: RGB top-down map ────────────────────────────────────────────────
+    canvas = rgb_map_2d.astype(np.float32).copy()
+
+    # ── Semantic heatmap overlay ──────────────────────────────────────────────
+    if category:
+        try:
+            mask_3d = robot.map.index_map(category, with_init_cat=True)
+            mask_2d = pool_3d_label_to_2d(mask_3d, robot.map.grid_pos, gs)
+            # Smooth heatmap from binary mask
+            from scipy.ndimage import distance_transform_edt as edt
+            dist = edt(~mask_2d)
+            heatmap = np.clip(1.0 - dist * 0.05, 0, 1).astype(np.float32)
+            heatmap_u8 = (heatmap * 255).astype(np.uint8)
+            heat_bgr = cv2.applyColorMap(heatmap_u8, cv2.COLORMAP_JET)
+            heat_rgb = heat_bgr[:, :, ::-1].astype(np.float32)
+            canvas = canvas * 0.5 + heat_rgb * 0.5
+        except Exception:
+            pass  # skip overlay if indexing fails
+
+    # ── Planned path ──────────────────────────────────────────────────────────
+    if path_cells and len(path_cells) > 1:
+        pts = np.array([[c[1], c[0]] for c in path_cells], dtype=np.int32)
+        canvas_bgr = cv2.cvtColor(canvas.astype(np.uint8), cv2.COLOR_RGB2BGR)
+        cv2.polylines(canvas_bgr, [pts], False, (255, 100, 0), 1)
+        canvas = cv2.cvtColor(canvas_bgr, cv2.COLOR_BGR2RGB).astype(np.float32)
+
+    # ── Robot position ────────────────────────────────────────────────────────
+    row = int(robot.curr_pos_on_map[0])
+    col = int(robot.curr_pos_on_map[1])
+    canvas_bgr = cv2.cvtColor(np.clip(canvas, 0, 255).astype(np.uint8),
+                               cv2.COLOR_RGB2BGR)
+    cv2.circle(canvas_bgr, (col, row), 5, (0, 255, 0), -1)   # filled green dot
+    cv2.circle(canvas_bgr, (col, row), 7, (255, 255, 255), 1) # white outline
+
+    # ── Label ─────────────────────────────────────────────────────────────────
+    if label:
+        cv2.putText(canvas_bgr, label, (8, 22),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        cv2.putText(canvas_bgr, label, (8, 22),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1)
+
+    # Scale up so the map is easier to read (grid is 500x500 by default)
+    scale = max(1, 600 // gs)
+    if scale > 1:
+        canvas_bgr = cv2.resize(canvas_bgr, (gs * scale, gs * scale),
+                                 interpolation=cv2.INTER_NEAREST)
+
+    cv2.imshow("Semantic Map", canvas_bgr)
+    cv2.waitKey(1)
+
+
+# ── Navigation helpers ────────────────────────────────────────────────────────
+
 def find_best_start_pose(robot):
     """
     Scan ~30 evenly-spaced trajectory poses and return the one whose 2-D map
@@ -46,8 +120,8 @@ def find_best_start_pose(robot):
     This avoids starting on top of furniture, which would make every
     move_to_object call return 0 actions (already at goal).
     """
-    obs_map = robot.map.obstacles_map          # True = free, False = obstacle
-    dist_map = distance_transform_edt(obs_map) # each free cell → distance to nearest obstacle
+    obs_map = robot.map.obstacles_map
+    dist_map = distance_transform_edt(obs_map)
 
     poses = robot.vlmaps_dataloader.base_poses
     n = len(poses)
@@ -73,6 +147,8 @@ def find_best_start_pose(robot):
     return cvt_pose_vec2tf(poses[best_idx])
 
 
+# ── Main ──────────────────────────────────────────────────────────────────────
+
 @hydra.main(
     version_base=None,
     config_path="../config",
@@ -84,11 +160,16 @@ def main(config: DictConfig) -> None:
     robot.setup_scene(config.scene_id)
     robot.map.init_categories(mp3dcat.copy())
 
-    # Pick the trajectory pose whose 2-D map cell is deepest inside free space.
+    print("\nBuilding top-down RGB map...")
+    rgb_map_2d = build_rgb_map_2d(robot)
+
     print("\nSearching for a good starting position...")
     start_tf = find_best_start_pose(robot)
     robot.set_agent_state(start_tf)
+    robot._set_nav_curr_pose()
+
     show_obs(robot, "Ready")
+    show_map(robot, rgb_map_2d, label="Ready")
     print("Scene:", robot.vlmaps_data_save_dirs[config.scene_id].name)
 
     # ── Instruction loop ─────────────────────────────────────────────────────
@@ -101,7 +182,6 @@ def main(config: DictConfig) -> None:
         if not instruction:
             continue
 
-        # Parse instruction → list of object categories via GPT-4o-mini.
         print("Parsing instruction...")
         try:
             categories = parse_object_goal_instruction(instruction)
@@ -111,47 +191,55 @@ def main(config: DictConfig) -> None:
 
         print(f"Targets: {categories}")
 
-        # Reset to start pose before each run so results are comparable.
         robot.set_agent_state(start_tf)
+        robot._set_nav_curr_pose()
         robot.empty_recorded_actions()
         show_obs(robot, "Start")
+        show_map(robot, rgb_map_2d, label="Start")
         cv2.waitKey(500)
 
-        # Navigate to each object in sequence.
         for cat in categories:
             cat = cat.strip()
             if not cat:
                 continue
             print(f"\nPlanning path to: {cat}")
 
-            # 1. Compute path silently (robot moves to destination internally).
+            # Show heatmap for this category while planning
+            show_map(robot, rgb_map_2d, category=cat, label=f"Planning: {cat}")
+            cv2.waitKey(200)
+
             robot.empty_recorded_actions()
             robot.move_to_object(cat)
             planned_actions = robot.get_recorded_actions() or []
             n_actions = len(planned_actions)
             print(f"  Path computed: {n_actions} actions. Replaying...")
+
             if n_actions == 0:
-                print(f"  [warn] No path found for '{cat}' — robot may already be "
-                      f"at the target or the category is not in the map. Skipping.")
+                print(f"  [warn] No path found for '{cat}' — skipping.")
                 continue
 
-            # 2. Reset to start of this sub-goal and replay step by step.
             robot.set_agent_state(start_tf)
+            robot._set_nav_curr_pose()
+
             for i, action in enumerate(planned_actions):
                 if action == "stop":
                     continue
                 robot.sim.step(action)
+                robot._set_nav_curr_pose()
                 show_obs(robot, f"[{i+1}/{n_actions}] -> {cat}")
-                cv2.waitKey(80)  # ~12 fps — increase to slow down, decrease to speed up
+                show_map(robot, rgb_map_2d, category=cat,
+                         label=f"[{i+1}/{n_actions}] -> {cat}")
+                cv2.waitKey(80)
 
             show_obs(robot, f"Arrived: {cat}")
+            show_map(robot, rgb_map_2d, category=cat, label=f"Arrived: {cat}")
             print(f"  Done.")
             cv2.waitKey(800)
 
-            # Update start_tf to current position for the next sub-goal.
             from vlmaps.utils.habitat_utils import agent_state2tf
             agent_state = robot.sim.get_agent(0).get_state()
             start_tf = agent_state2tf(agent_state)
+            robot._set_nav_curr_pose()
 
         print("\nInstruction complete. Press any key in the window to continue.")
         cv2.waitKey(0)

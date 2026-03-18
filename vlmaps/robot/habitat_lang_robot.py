@@ -113,11 +113,18 @@ class HabitatLanguageRobot(LangRobot):
         if self.sim is not None:
             self.sim.close()
 
-        scene_short_name = scene_name.split("-")[-1]
+        # HM3D: "00800-TEEsavR23oF" → short name "TEEsavR23oF", file .basis.glb
+        # MP3D: "5LpN3gDmAk7"      → short name "5LpN3gDmAk7",  file .glb
+        if "-" in scene_name:
+            scene_short_name = scene_name.split("-")[-1]
+            glb_filename = scene_short_name + ".basis.glb"
+        else:
+            scene_short_name = scene_name
+            glb_filename = scene_short_name + ".glb"
         self.test_scene = os.path.join(
             self.test_scene_dir,
             scene_name,
-            scene_short_name + ".basis.glb",
+            glb_filename,
         )
 
         self.sim_setting = {

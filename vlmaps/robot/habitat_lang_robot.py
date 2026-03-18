@@ -42,7 +42,7 @@ class HabitatLanguageRobot(LangRobot):
         super().__init__(config)
 
         self.test_scene_dir = self.config["data_paths"]["habitat_scene_dir"]
-        data_dir = Path(self.config["data_paths"]["vlmaps_data_dir"]) / "vlmaps_dataset"
+        data_dir = Path(self.config["data_paths"]["vlmaps_data_dir"])
         self.vlmaps_data_save_dirs = [
             data_dir / x for x in sorted(os.listdir(data_dir)) if x != ".DS_Store"
         ]  # ignore artifact generated in MacOS
@@ -112,7 +112,21 @@ class HabitatLanguageRobot(LangRobot):
         """
         if self.sim is not None:
             self.sim.close()
-        self.test_scene = os.path.join(self.test_scene_dir, scene_name, scene_name + ".glb")
+
+        # HM3D: "00800-TEEsavR23oF" → short name "TEEsavR23oF", file .basis.glb
+        # MP3D: "5LpN3gDmAk7"      → short name "5LpN3gDmAk7",  file .glb
+        if "-" in scene_name:
+            scene_short_name = scene_name.split("-")[-1]
+            glb_filename = scene_short_name + ".basis.glb"
+        else:
+            scene_short_name = scene_name
+            glb_filename = scene_short_name + ".glb"
+        self.test_scene = os.path.join(
+            self.test_scene_dir,
+            scene_name,
+            glb_filename,
+        )
+
         self.sim_setting = {
             "scene": self.test_scene,
             **self.config["params"]["sim_setting"],

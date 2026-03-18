@@ -31,9 +31,13 @@ def find_similar_category_id_deprecate(class_name, classes_list):
     print(f"Similar category of {class_name} is {result}")
     return classes_list.index(result)
 
+_category_cache: dict = {}
+
 def find_similar_category_id(class_name, classes_list):
     if class_name in classes_list:
         return classes_list.index(class_name)
+    if class_name in _category_cache:
+        return _category_cache[class_name]
     import openai
 
     openai_key = os.environ["OPENAI_KEY"]
@@ -41,7 +45,7 @@ def find_similar_category_id(class_name, classes_list):
     classes_list_str = ",".join(classes_list)
     client = openai.OpenAI(api_key=openai_key)
     response = client.chat.completions.create(
-        model="gpt-4-turbo",
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "user",
@@ -67,9 +71,24 @@ def find_similar_category_id(class_name, classes_list):
         max_tokens=300,
     )
 
-    text = response.choices[0].message.content
+    text = response.choices[0].message.content.strip()
     print(text)
-    return classes_list.index(text)
+    # Exact match first
+    if text in classes_list:
+        result = classes_list.index(text)
+        _category_cache[class_name] = result
+        return result
+    # GPT sometimes returns a full sentence — find whichever category it mentions
+    for item in classes_list:
+        if item.lower() in text.lower():
+            result = classes_list.index(item)
+            _category_cache[class_name] = result
+            return result
+    # Last resort: return closest by string similarity
+    print(f"  [warn] Could not parse '{text}' as a category, defaulting to index 0")
+    result = 0
+    _category_cache[class_name] = result
+    return result
 
 
 def get_segment_islands_pos(segment_map, label_id, detect_internal_contours=False):

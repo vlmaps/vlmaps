@@ -67,6 +67,10 @@ class HabitatObjectNavigationTask(HabitatTask):
             dist = get_dist_to_bbox_2d(obj_pos[[0, 2]], obj_size[[0, 2]], pos_hab[[0, 2]])
             dists_list.append(dist)
 
+        if not class_objects:
+            print(f"  [warn] No objects of class '{class_name}' found on this floor.")
+            return None, float("inf")
+
         ranks = np.argsort(np.array(dists_list))
         closest_obj = class_objects[ranks[0]]
         closest_dist = dists_list[ranks[0]]

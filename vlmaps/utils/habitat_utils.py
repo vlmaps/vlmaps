@@ -5,6 +5,7 @@ from scipy.spatial.transform import Rotation as R
 
 import cv2
 import habitat_sim
+import magnum as mn
 import numpy as np
 from PIL import Image
 
@@ -87,8 +88,8 @@ def make_sensor_spec(
     sensor_spec.sensor_type = sensor_type
     sensor_spec.resolution = [h, w]
     sensor_spec.position = position
-    if orientation:
-        sensor_spec.orientation = orientation
+    if orientation is not None:
+        sensor_spec.orientation = mn.Vector3(orientation)
 
     sensor_spec.sensor_subtype = habitat_sim.SensorSubType.PINHOLE
     return sensor_spec
@@ -211,7 +212,7 @@ def cvt_obj_id_2_cls_id(semantic: np.ndarray, obj2cls: Dict) -> np.ndarray:
     h, w = semantic.shape
     semantic = semantic.flatten()
     u, inv = np.unique(semantic, return_inverse=True)
-    return np.array([obj2cls[x][0] for x in u])[inv].reshape((h, w))
+    return np.array([obj2cls[x][0] if x in obj2cls else 0 for x in u])[inv].reshape((h, w))
 
 
 def set_agent_state(p: np.array, q: np.array):

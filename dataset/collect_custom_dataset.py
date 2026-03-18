@@ -43,11 +43,18 @@ def main(config: DictConfig) -> None:
         # img_save_dir += f"{scenes_names[SCENE_ID]}_1"
         # os.makedirs(img_save_dir, exist_ok=True)
 
-        scene_short_name = scene_name.split("-")[1]
+        # HM3D format: "00800-TEEsavR23oF" → short name "TEEsavR23oF", file .basis.glb
+        # MP3D format: "5LpN3gDmAk7"      → short name "5LpN3gDmAk7",  file .glb
+        if "-" in scene_name:
+            scene_short_name = scene_name.split("-")[1]
+            glb_filename = f"{scene_short_name}.basis.glb"
+        else:
+            scene_short_name = scene_name
+            glb_filename = f"{scene_short_name}.glb"
         test_scene = os.path.join(
             config.data_paths.habitat_scene_dir,
             scene_name,
-            f"{scene_short_name}.basis.glb",
+            glb_filename,
         )
 
         sim_setting = {

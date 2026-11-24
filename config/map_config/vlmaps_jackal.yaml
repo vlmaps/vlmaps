@@ -15,7 +15,7 @@ pose_info:
   base_up_axis: [0, 1, 0]
 
 # PRUEBA: procesar solo 1 de cada 20 frames.
-skip_frame: 20
+skip_frame: 1
 
 # Isaac Sim camera intrinsics
 cam_calib_mat:
